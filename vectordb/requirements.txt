@@ -1,0 +1,8 @@
+flask==3.0.3
+gunicorn==22.0.0
+chromadb
+langchain-chroma
+langchain-openai==0.1.22
+langchain-community==0.2.16
+langchain-core==0.2.43
+python-dotenv==1.1.1

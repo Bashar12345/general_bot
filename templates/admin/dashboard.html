@@ -1,0 +1,36 @@
+{% extends "admin/base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<h1>Dashboard</h1>
+
+<div class="stat-grid">
+  <div class="stat">
+    <div class="num">{{ url_count }}</div>
+    <div class="label">URLs</div>
+  </div>
+  <div class="stat">
+    <div class="num">{{ doc_count }}</div>
+    <div class="label">PDF Documents</div>
+  </div>
+</div>
+
+<div class="card">
+  <h3>Bot Identity</h3>
+  <table>
+    <tr><th>Name</th><td>{{ settings.bot_name }}</td></tr>
+    <tr><th>Personality</th><td>{{ settings.personality }}</td></tr>
+    <tr><th>Tone</th><td>{{ settings.tone }}</td></tr>
+    <tr><th>Purpose</th><td>{{ settings.purpose }}</td></tr>
+  </table>
+</div>
+
+<div class="card">
+  <h3>Index Management</h3>
+  <p style="font-size:14px;color:#8aaac8;margin-bottom:12px;">
+    The vector index persists until you force a rebuild. Use this button after adding URLs, uploading PDFs, or updating bot settings. Each rebuild increments the version and updates timestamps on indexed sources.
+  </p>
+  <form method="POST" action="{{ url_for('admin.rebuild') }}">
+    <button class="btn btn-primary">Rebuild Index Now</button>
+  </form>
+</div>
+{% endblock %}

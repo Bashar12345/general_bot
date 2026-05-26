@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Login — Betopia AI</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    ::selection { background: #f79549; color: #fff; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+      background: #04060e; color: #e8e8e8;
+      min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    }
+    .login {
+      background: #0a0c16; border: 1px solid #1a1c26; border-radius: 12px;
+      padding: 40px; width: 360px;
+    }
+    .login h1 { font-size: 20px; margin-bottom: 24px; color: #fff; text-align: center; }
+    .login label { display: block; font-size: 13px; color: #888; margin-bottom: 6px; }
+    .login input {
+      width: 100%; padding: 10px 12px; background: #04060e; border: 1px solid #1a1c26;
+      border-radius: 8px; color: #e8e8e8; font-size: 14px; outline: none; margin-bottom: 16px;
+    }
+    .login input:focus { border-color: #f79549; }
+    .login .btn {
+      width: 100%; padding: 11px; background: #f79549; color: #04060e; border: none;
+      border-radius: 8px; font-size: 15px; font-weight: 700; cursor: pointer;
+    }
+    .login .btn:hover { background: #fe6e00; }
+    .flash { padding: 10px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 13px; text-align: center; }
+    .flash.error { background: #1c0a0a; color: #ff5555; border: 1px solid #3c1a1a; }
+  </style>
+</head>
+<body>
+  <div class="login">
+    <h1>Betopia AI Admin</h1>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for cat, msg in messages %}
+        <div class="flash {{ cat }}">{{ msg }}</div>
+      {% endfor %}
+    {% endwith %}
+    <form method="POST">
+      <label>Username</label>
+      <input type="text" name="username" required>
+      <label>Password</label>
+      <input type="password" name="password" required>
+      <button type="submit" class="btn">Sign In</button>
+    </form>
+  </div>
+</body>
+</html>

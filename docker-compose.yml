@@ -1,0 +1,49 @@
+services:
+  vectordb:
+    build: ./vectordb
+    container_name: valr-vectordb
+    ports:
+      - "5001:5001"
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    env_file:
+      - .env
+    environment:
+      - FLASK_APP=app.py
+      - FLASK_DEBUG=1
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    volumes:
+      - ./vectordb:/app
+      - vectordb_data:/app/chroma
+    restart: unless-stopped
+    command: flask run --host 0.0.0.0 --port 5001 --debug
+
+  valr-bot:
+    build: .
+    container_name: valr-bot
+    ports:
+      - "5000:5000"
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    env_file:
+      - .env
+    environment:
+      - FLASK_APP=app.py
+      - FLASK_DEBUG=1
+      - FLASK_SECRET_KEY=${FLASK_SECRET_KEY:-change-me-in-production}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
+      - VEKTORDB_URL=http://vectordb:5001
+    volumes:
+      - .:/app
+      - vectordb_data:/app/chroma
+    depends_on:
+      - vectordb
+    restart: unless-stopped
+    command: flask run --host 0.0.0.0 --port 5000 --debug
+
+volumes:
+  vectordb_data:
