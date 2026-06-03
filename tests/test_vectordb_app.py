@@ -192,6 +192,35 @@ def test_homepage_uses_saved_bot_name(monkeypatch, tmp_path):
     assert "Intelligent Enterprise Assistant — Nova Assist" in body
 
 
+def test_homepage_uses_saved_theme(monkeypatch, tmp_path):
+    db_path = tmp_path / "admin.db"
+
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    conn.execute(
+        "CREATE TABLE settings (id INTEGER PRIMARY KEY, bot_name TEXT NOT NULL DEFAULT 'Betopia AI', theme TEXT DEFAULT 'dark', personality TEXT DEFAULT '', tone TEXT DEFAULT '', purpose TEXT DEFAULT '', instructions TEXT DEFAULT '', updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"
+    )
+    conn.execute(
+        "INSERT INTO settings (id, bot_name, theme, personality, tone, purpose, instructions) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (1, "Nova Assist", "light", "", "", "", ""),
+    )
+    conn.commit()
+    conn.close()
+
+    db_module = importlib.import_module("db")
+    monkeypatch.setattr(db_module, "init_db", lambda: None)
+    monkeypatch.setattr(db_module, "DB_PATH", db_path)
+
+    app_module = importlib.import_module("app")
+
+    client = app_module.app.test_client()
+    response = client.get("/")
+
+    assert response.status_code == 200
+    body = response.get_data(as_text=True)
+    assert 'body class="theme-light"' in body
+
+
 def test_admin_login_uses_saved_brand_name_and_logout_posts(monkeypatch, tmp_path):
     db_path = tmp_path / "admin.db"
 

@@ -29,10 +29,14 @@ def _run_async(coro):
 def index():
     settings = get_settings()
     bot_name = settings.get("bot_name", "Betopia AI")
+    theme = (settings.get("theme") or "dark").strip().lower()
+    if theme not in {"dark", "light"}:
+        theme = "dark"
     return render_template(
         "vac_chat.html",
         bot_name=bot_name,
         bot_tagline=f"Intelligent Enterprise Assistant — {bot_name}",
+        theme=theme,
     )
 
 @app.route("/ask", methods=["POST"])
