@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Betopia AI — Intelligent Enterprise Assistant</title>
+  <title>{{ bot_name }} — Intelligent Enterprise Assistant</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     ::selection { background: #f79549; color: #fff; }
@@ -114,15 +114,15 @@
   <header>
     <div class="logo">B</div>
     <div>
-      <h1>Betopia AI</h1>
-      <div class="sub">Intelligent Enterprise Assistant — AI, Cloud & Digital Transformation</div>
+      <h1>{{ bot_name }}</h1>
+      <div class="sub">{{ bot_tagline }}</div>
     </div>
   </header>
   <div class="container">
     <div id="chat">
       <div class="welcome" id="welcome">
-        <h2>How can Betopia help you?</h2>
-        <p>Ask me about AI transformation, cloud solutions, ERP,<br>cybersecurity, or any of Betopia's enterprise products and services.</p>
+        <h2>How can {{ bot_name }} help you?</h2>
+        <p>Ask me about AI transformation, cloud solutions, ERP,<br>cybersecurity, or any of the enterprise products and services we support.</p>
       </div>
     </div>
     <div class="input-area">
@@ -146,7 +146,7 @@
       div.textContent = text;
       const meta = document.createElement('div');
       meta.className = 'meta';
-      meta.textContent = role === 'bot' ? 'Betopia AI' : 'You';
+      meta.textContent = role === 'bot' ? {{ bot_name|tojson }} : 'You';
       div.appendChild(meta);
       chat.appendChild(div);
       chat.scrollTop = chat.scrollHeight;

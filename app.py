@@ -4,7 +4,7 @@ import concurrent.futures
 from flask import Flask, render_template, request, jsonify, session
 
 from admin import admin_bp
-from db import init_db
+from db import init_db, get_settings
 
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "valr-bot-dev-key-change-in-prod")
@@ -27,7 +27,13 @@ def _run_async(coro):
 
 @app.route("/")
 def index():
-    return render_template("vac_chat.html")
+    settings = get_settings()
+    bot_name = settings.get("bot_name", "Betopia AI")
+    return render_template(
+        "vac_chat.html",
+        bot_name=bot_name,
+        bot_tagline=f"Intelligent Enterprise Assistant — {bot_name}",
+    )
 
 @app.route("/ask", methods=["POST"])
 def ask_question():

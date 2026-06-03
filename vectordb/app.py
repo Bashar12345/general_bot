@@ -7,6 +7,9 @@ from langchain_chroma import Chroma
 from langchain.schema import Document
 from dotenv import load_dotenv
 import chromadb
+from chromadb.config import Settings
+from chromadb.telemetry.product import ProductTelemetryClient, ProductTelemetryEvent
+from overrides import override
 
 load_dotenv()
 
@@ -20,10 +23,28 @@ embeddings = OpenAIEmbeddings()
 _db = None
 _client = None
 
+
+class NoOpProductTelemetryClient(ProductTelemetryClient):
+    @override
+    def capture(self, event: ProductTelemetryEvent) -> None:
+        return
+
+
+_chroma_settings = Settings(
+    anonymized_telemetry=False,
+    is_persistent=True,
+    persist_directory=str(CHROMA_DIR),
+    chroma_product_telemetry_impl="app.NoOpProductTelemetryClient",
+    chroma_telemetry_impl="app.NoOpProductTelemetryClient",
+)
+
 def _get_or_create_client():
     global _client
     if _client is None:
-        _client = chromadb.PersistentClient(path=str(CHROMA_DIR))
+        _client = chromadb.PersistentClient(
+            path=str(CHROMA_DIR),
+            settings=_chroma_settings,
+        )
     return _client
 
 def _load_or_create_db():
