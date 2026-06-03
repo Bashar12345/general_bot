@@ -18,6 +18,7 @@ def get_conn():
 def migrate_db():
     conn = get_conn()
     migrations = [
+        "ALTER TABLE settings ADD COLUMN theme TEXT DEFAULT 'dark'",
         "ALTER TABLE urls ADD COLUMN last_indexed_at TIMESTAMP",
         "ALTER TABLE urls ADD COLUMN version INTEGER DEFAULT 0",
         "ALTER TABLE documents ADD COLUMN last_indexed_at TIMESTAMP",
@@ -37,6 +38,7 @@ def init_db():
         CREATE TABLE IF NOT EXISTS settings (
             id INTEGER PRIMARY KEY,
             bot_name TEXT NOT NULL DEFAULT 'Betopia AI',
+            theme TEXT DEFAULT 'dark',
             personality TEXT DEFAULT '',
             tone TEXT DEFAULT '',
             purpose TEXT DEFAULT '',
@@ -73,9 +75,10 @@ def init_db():
     row = conn.execute("SELECT COUNT(*) FROM settings").fetchone()
     if row[0] == 0:
         conn.execute(
-            "INSERT INTO settings (bot_name, personality, tone, purpose, instructions) VALUES (?, ?, ?, ?, ?)",
+            "INSERT INTO settings (bot_name, theme, personality, tone, purpose, instructions) VALUES (?, ?, ?, ?, ?, ?)",
             (
                 "Betopia AI",
+                "dark",
                 "a knowledgeable, professional AI assistant from Betopia Limited",
                 "professional and helpful. Be concise, clear, and friendly. Use 'we' for Betopia. End with next steps or an offer to help further.",
                 "Betopia Limited is a global enterprise technology company delivering AI-powered cloud, ERP, cybersecurity, and digital transformation solutions.",

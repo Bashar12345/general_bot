@@ -7,7 +7,15 @@
   <form method="POST">
     <div class="form-group">
       <label>Bot Name</label>
-      <input type="text" name="bot_name" value="{{ settings.bot_name }}" placeholder="VALR-Bot">
+      <input type="text" name="bot_name" value="{{ settings.bot_name }}" placeholder="{{ admin_brand_name }}">
+    </div>
+    <div class="form-group">
+      <label>Theme</label>
+      <select name="theme">
+        {% for option in theme_options %}
+          <option value="{{ option }}" {% if settings.theme == option %}selected{% endif %}>{{ option|title }} Mode</option>
+        {% endfor %}
+      </select>
     </div>
     <div class="form-group">
       <label>Personality</label>

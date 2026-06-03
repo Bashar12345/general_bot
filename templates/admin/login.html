@@ -3,38 +3,69 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin Login — Betopia AI</title>
+  <title>Admin Login — {{ admin_brand_name }}</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     ::selection { background: #f79549; color: #fff; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
-      background: #04060e; color: #e8e8e8;
+      background: var(--bg); color: var(--text);
       min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      transition: background 0.2s ease, color 0.2s ease;
+    }
+    body.theme-dark {
+      --bg: #04060e;
+      --surface: #0a0c16;
+      --surface-2: #070911;
+      --border: #1a1c26;
+      --text: #e8e8e8;
+      --text-strong: #ffffff;
+      --muted: #888;
+      --accent: #f79549;
+      --accent-hover: #fe6e00;
+      --button-text: #04060e;
+      --error-bg: #1c0a0a;
+      --error-text: #ff5555;
+      --error-border: #3c1a1a;
+    }
+    body.theme-light {
+      --bg: #f5f7fb;
+      --surface: #ffffff;
+      --surface-2: #eef2f8;
+      --border: #d6dbe6;
+      --text: #1f2937;
+      --text-strong: #0f172a;
+      --muted: #667085;
+      --accent: #c96a1a;
+      --accent-hover: #a35410;
+      --button-text: #111827;
+      --error-bg: #fdecec;
+      --error-text: #b42318;
+      --error-border: #f5b5b5;
     }
     .login {
-      background: #0a0c16; border: 1px solid #1a1c26; border-radius: 12px;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
       padding: 40px; width: 360px;
     }
-    .login h1 { font-size: 20px; margin-bottom: 24px; color: #fff; text-align: center; }
-    .login label { display: block; font-size: 13px; color: #888; margin-bottom: 6px; }
+    .login h1 { font-size: 20px; margin-bottom: 24px; color: var(--text-strong); text-align: center; }
+    .login label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
     .login input {
-      width: 100%; padding: 10px 12px; background: #04060e; border: 1px solid #1a1c26;
-      border-radius: 8px; color: #e8e8e8; font-size: 14px; outline: none; margin-bottom: 16px;
+      width: 100%; padding: 10px 12px; background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text); font-size: 14px; outline: none; margin-bottom: 16px;
     }
-    .login input:focus { border-color: #f79549; }
+    .login input:focus { border-color: var(--accent); }
     .login .btn {
-      width: 100%; padding: 11px; background: #f79549; color: #04060e; border: none;
+      width: 100%; padding: 11px; background: var(--accent); color: var(--button-text); border: none;
       border-radius: 8px; font-size: 15px; font-weight: 700; cursor: pointer;
     }
-    .login .btn:hover { background: #fe6e00; }
+    .login .btn:hover { background: var(--accent-hover); }
     .flash { padding: 10px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 13px; text-align: center; }
-    .flash.error { background: #1c0a0a; color: #ff5555; border: 1px solid #3c1a1a; }
+    .flash.error { background: var(--error-bg); color: var(--error-text); border: 1px solid var(--error-border); }
   </style>
 </head>
-<body>
+<body class="theme-{{ admin_theme }}">
   <div class="login">
-    <h1>Betopia AI Admin</h1>
+    <h1>{{ admin_brand_name }} Admin</h1>
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% for cat, msg in messages %}
         <div class="flash {{ cat }}">{{ msg }}</div>

@@ -13,6 +13,13 @@ admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 
 ADMIN_USER = os.getenv("ADMIN_USERNAME", "admin")
 ADMIN_PASS = os.getenv("ADMIN_PASSWORD", "admin123")
+DEFAULT_BOT_NAME = "Betopia AI"
+DEFAULT_THEME = "dark"
+
+THEME_OPTIONS = [
+    "dark",
+    "light",
+]
 
 PERSONALITY_OPTIONS = [
     "Professional",
@@ -46,6 +53,18 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated
 
+
+@admin_bp.app_context_processor
+def inject_admin_brand_name():
+    settings = load_settings()
+    theme = (settings.get("theme") or DEFAULT_THEME).strip().lower()
+    if theme not in THEME_OPTIONS:
+        theme = DEFAULT_THEME
+    return {
+        "admin_brand_name": settings.get("bot_name") or DEFAULT_BOT_NAME,
+        "admin_theme": theme,
+    }
+
 @admin_bp.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
@@ -55,7 +74,7 @@ def login():
         flash("Invalid credentials", "error")
     return render_template("admin/login.html")
 
-@admin_bp.route("/logout")
+@admin_bp.route("/logout", methods=["POST"])
 def logout():
     session.pop("admin", None)
     return redirect(url_for("admin.login"))
@@ -77,11 +96,15 @@ def dashboard():
 @admin_required
 def settings():
     if request.method == "POST":
+        theme = request.form.get("theme", DEFAULT_THEME).strip().lower()
+        if theme not in THEME_OPTIONS:
+            theme = DEFAULT_THEME
         conn = get_conn()
         conn.execute(
-            "UPDATE settings SET bot_name=?, personality=?, tone=?, purpose=?, instructions=?, updated_at=? WHERE id=1",
+            "UPDATE settings SET bot_name=?, theme=?, personality=?, tone=?, purpose=?, instructions=?, updated_at=? WHERE id=1",
             (
-                request.form.get("bot_name", "VALR-Bot"),
+                request.form.get("bot_name", "").strip() or DEFAULT_BOT_NAME,
+                theme,
                 request.form.get("personality", ""),
                 request.form.get("tone", ""),
                 request.form.get("purpose", ""),
@@ -99,6 +122,7 @@ def settings():
     return render_template(
         "admin/settings.html",
         settings=settings,
+        theme_options=THEME_OPTIONS,
         personality_options=PERSONALITY_OPTIONS,
         tone_options=TONE_OPTIONS,
         purpose_options=PURPOSE_OPTIONS,
