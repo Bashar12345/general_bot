@@ -14,6 +14,30 @@ admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 ADMIN_USER = os.getenv("ADMIN_USERNAME", "admin")
 ADMIN_PASS = os.getenv("ADMIN_PASSWORD", "admin123")
 
+PERSONALITY_OPTIONS = [
+    "Professional",
+    "Warm and empathetic",
+    "Friendly and conversational",
+    "Concise and direct",
+    "Expert and authoritative",
+]
+
+TONE_OPTIONS = [
+    "Professional and helpful",
+    "Warm and supportive",
+    "Concise and direct",
+    "Calm and reassuring",
+    "Friendly and approachable",
+]
+
+PURPOSE_OPTIONS = [
+    "FAQ assistant",
+    "Support triage assistant",
+    "Onboarding assistant",
+    "Policy and guidance assistant",
+    "Knowledge base assistant",
+]
+
 def admin_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -72,7 +96,13 @@ def settings():
         flash("Settings saved and chain will rebuild on next question.", "success")
         return redirect(url_for("admin.settings"))
     settings = load_settings()
-    return render_template("admin/settings.html", settings=settings)
+    return render_template(
+        "admin/settings.html",
+        settings=settings,
+        personality_options=PERSONALITY_OPTIONS,
+        tone_options=TONE_OPTIONS,
+        purpose_options=PURPOSE_OPTIONS,
+    )
 
 @admin_bp.route("/knowledge")
 @admin_required

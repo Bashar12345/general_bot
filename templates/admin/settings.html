@@ -11,15 +11,39 @@
     </div>
     <div class="form-group">
       <label>Personality</label>
-      <input type="text" name="personality" value="{{ settings.personality }}" placeholder="e.g., a warm, veteran-owned assistant from VALR">
+      <select name="personality">
+        <option value="">Choose a personality</option>
+        {% if settings.personality and settings.personality not in personality_options %}
+          <option value="{{ settings.personality }}" selected>{{ settings.personality }} (current custom)</option>
+        {% endif %}
+        {% for option in personality_options %}
+          <option value="{{ option }}" {% if settings.personality == option %}selected{% endif %}>{{ option }}</option>
+        {% endfor %}
+      </select>
     </div>
     <div class="form-group">
       <label>Tone</label>
-      <textarea name="tone" placeholder="e.g., battle-buddy style: short, clear, caring. Use 'we', 'you', 'I got you'.">{{ settings.tone }}</textarea>
+      <select name="tone">
+        <option value="">Choose a tone</option>
+        {% if settings.tone and settings.tone not in tone_options %}
+          <option value="{{ settings.tone }}" selected>{{ settings.tone }} (current custom)</option>
+        {% endif %}
+        {% for option in tone_options %}
+          <option value="{{ option }}" {% if settings.tone == option %}selected{% endif %}>{{ option }}</option>
+        {% endfor %}
+      </select>
     </div>
     <div class="form-group">
       <label>Purpose / Use Case</label>
-      <textarea name="purpose" placeholder="e.g., VALR is a veteran-owned organization dedicated to simplifying the VA process.">{{ settings.purpose }}</textarea>
+      <select name="purpose">
+        <option value="">Choose a purpose</option>
+        {% if settings.purpose and settings.purpose not in purpose_options %}
+          <option value="{{ settings.purpose }}" selected>{{ settings.purpose }} (current custom)</option>
+        {% endif %}
+        {% for option in purpose_options %}
+          <option value="{{ option }}" {% if settings.purpose == option %}selected{% endif %}>{{ option }}</option>
+        {% endfor %}
+      </select>
     </div>
     <div class="form-group">
       <label>Instructions / Fallback Message</label>
