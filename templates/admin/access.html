@@ -1,0 +1,175 @@
+{% extends "admin/base.html" %}
+{% block title %}Tenant Access{% endblock %}
+{% block content %}
+<style>
+  .access-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.7fr) minmax(280px, 0.8fr);
+    gap: 20px;
+    align-items: start;
+  }
+  .tenant-summary {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+  .tenant-summary .mark {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+    display: grid;
+    place-items: center;
+    color: var(--button-text);
+    font-weight: 800;
+  }
+  .section-title {
+    font-size: 13px;
+    color: var(--accent);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    font-weight: 800;
+    margin-bottom: 14px;
+  }
+  .user-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .user-row:last-child { border-bottom: 0; }
+  .avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: var(--surface-2);
+    display: grid;
+    place-items: center;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .user-email { flex: 1; font-weight: 600; }
+  .role-pill {
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: var(--surface-2);
+    font-size: 12px;
+    color: var(--text-strong);
+    font-weight: 700;
+  }
+  .invite-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(180px, 0.95fr) 120px 110px;
+    gap: 10px;
+    align-items: end;
+  }
+  .invite-submit {
+    display: flex;
+    align-items: flex-end;
+  }
+  .invite-submit .btn {
+    width: 100%;
+  }
+  .helper-text {
+    margin-top: 10px;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.45;
+  }
+  .token {
+    width: 100%;
+    font-family: inherit;
+    letter-spacing: 0.02em;
+  }
+  .role-select {
+    padding: 4px 8px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--surface-1);
+    color: var(--text-strong);
+    font-size: 12px;
+  }
+  .btn-sm {
+    padding: 4px 10px;
+    font-size: 12px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    color: var(--text-strong);
+    cursor: pointer;
+    font-weight: 600;
+  }
+  .btn-sm:hover { background: var(--surface-3); }
+  .btn-danger { color: #e74c3c; border-color: #e74c3c; }
+  .btn-danger:hover { background: #e74c3c; color: #fff; }
+  @media (max-width: 980px) {
+    .access-grid { grid-template-columns: 1fr; }
+    .invite-grid { grid-template-columns: 1fr; }
+  }
+</style>
+
+<h1>Access</h1>
+
+<div class="access-grid" style="grid-template-columns: minmax(0, 1fr);">
+  <div class="card">
+    <div class="section-title">Admin users</div>
+    {% if invite_result.temporary_password %}
+      <div style="margin-bottom:18px;padding:14px 16px;border-radius:12px;background:var(--surface-2);border:1px solid var(--border);">
+        <div style="font-size:12px;text-transform:uppercase;letter-spacing:0.06em;color:var(--accent);font-weight:800;margin-bottom:8px;">Temporary password</div>
+        <div style="font-size:14px;font-weight:700;color:var(--text-strong);margin-bottom:8px;">{{ invite_result.user }}</div>
+        <input value="{{ invite_result.temporary_password }}" readonly style="font-weight:700;letter-spacing:0.03em;">
+        <p class="helper-text" style="margin-bottom:0;">Visible once after invite creation. Share it with the user, then have them change it after login.</p>
+      </div>
+    {% endif %}
+    {% for u in admins %}
+      <div class="user-row">
+        <div class="avatar">{{ (u.username[:2]|upper) if u.username else 'U' }}</div>
+        <div class="user-email">{{ u.username }}</div>
+        <form method="POST" action="{{ url_for('admin.edit_user', user_id=u.id) }}" style="display:inline-flex;gap:6px;align-items:center;">
+          <select name="role" class="role-select">
+            <option value="viewer" {% if u.role == 'viewer' %}selected{% endif %}>Viewer</option>
+            <option value="admin" {% if u.role == 'admin' %}selected{% endif %}>Admin</option>
+          </select>
+          <button class="btn btn-sm" type="submit">Save</button>
+        </form>
+        <form method="POST" action="{{ url_for('admin.delete_user', user_id=u.id) }}" style="display:inline;" onsubmit="return confirm('Delete user {{ u.username }}?');">
+          <button class="btn btn-sm btn-danger" type="submit">Delete</button>
+        </form>
+      </div>
+    {% else %}
+      <div class="empty">No tenant users found yet.</div>
+    {% endfor %}
+
+    <div style="margin-top:20px;">
+      <div class="section-title">Invite user</div>
+      <form method="POST" action="{{ url_for('admin.add_user') }}">
+        <div class="invite-grid">
+          <div class="form-group">
+            <label>Email</label>
+            <input name="email" type="email" placeholder="user@example.com" required>
+          </div>
+          <div class="form-group">
+            <label>Temporary password</label>
+            <input name="password" type="text" placeholder="Leave blank to auto-generate">
+          </div>
+          <div class="form-group">
+            <label>Role</label>
+            <select name="role">
+              <option value="viewer">Viewer</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+          <div class="form-group invite-submit">
+            <button class="btn btn-primary" type="submit">Invite</button>
+          </div>
+        </div>
+      </form>
+      <p class="helper-text">If you leave the password blank, the system will generate a temporary one and show it after creation.</p>
+    </div>
+  </div>
+</div>
+{% endblock %}

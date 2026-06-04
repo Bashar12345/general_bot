@@ -1,10 +1,11 @@
 import os
 import asyncio
 import concurrent.futures
-from flask import Flask, render_template, request, jsonify, session, g
+from flask import Flask, render_template, request, jsonify, session, g, redirect, url_for, flash
+from werkzeug.security import check_password_hash
 
 from admin import admin_bp
-from db import init_db, get_settings, get_default_tenant_id
+from db import init_db, get_settings, get_default_tenant_id, get_conn
 
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "valr-bot-dev-key-change-in-prod")
@@ -35,6 +36,8 @@ def _run_async(coro):
 
 @app.route("/")
 def index():
+    if not session.get("user_id"):
+        return redirect(url_for("user_login"))
     settings = get_settings(g.tenant_id)
     bot_name = settings.get("bot_name", "Betopia AI")
     theme = (settings.get("theme") or "dark").strip().lower()
@@ -61,6 +64,68 @@ def ask_question():
 
     result = _run_async(ask(q, sid, tenant_id=g.tenant_id))
     return jsonify(result)
+
+
+@app.route('/login', methods=['GET', 'POST'])
+def user_login():
+    if request.method == 'POST':
+        username = (request.form.get('username') or '').strip()
+        password = (request.form.get('password') or '').strip()
+        if not username or not password:
+            flash('Username and password required', 'error')
+            return redirect(url_for('user_login'))
+        conn = None
+        try:
+            from db import get_conn
+            conn = get_conn()
+            row = conn.execute('SELECT id, tenant_id, password_hash, role FROM users WHERE username=?', (username,)).fetchone()
+            if row and check_password_hash(row['password_hash'], password):
+                session['user_id'] = row['id']
+                session['tenant_id'] = row['tenant_id']
+                session['username'] = username
+                session['user_role'] = row['role']
+                flash('Logged in', 'success')
+                return redirect(url_for('index'))
+            flash('Invalid credentials', 'error')
+        finally:
+            if conn:
+                conn.close()
+    return render_template('user/login.html')
+
+
+@app.route('/logout', methods=['POST'])
+def user_logout():
+    session.pop('user_id', None)
+    session.pop('username', None)
+    session.pop('tenant_id', None)
+    session.pop('user_role', None)
+    return redirect(url_for('user_login'))
+
+
+@app.route('/change_password', methods=['GET', 'POST'])
+def change_password():
+    if not session.get('user_id'):
+        flash('Login required', 'error')
+        return redirect(url_for('user_login'))
+    if request.method == 'POST':
+        current = (request.form.get('current') or '').strip()
+        newpw = (request.form.get('new') or '').strip()
+        if not current or not newpw:
+            flash('Both current and new password are required', 'error')
+            return redirect(url_for('change_password'))
+        conn = get_conn()
+        row = conn.execute('SELECT password_hash FROM users WHERE id=?', (session['user_id'],)).fetchone()
+        if not row or not check_password_hash(row['password_hash'], current):
+            conn.close()
+            flash('Current password is incorrect', 'error')
+            return redirect(url_for('change_password'))
+        from werkzeug.security import generate_password_hash
+        conn.execute('UPDATE users SET password_hash=? WHERE id=?', (generate_password_hash(newpw), session['user_id']))
+        conn.commit()
+        conn.close()
+        flash('Password updated', 'success')
+        return redirect(url_for('index'))
+    return render_template('user/change_password.html')
 
 @app.route("/health")
 def health():

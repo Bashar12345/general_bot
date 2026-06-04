@@ -8,7 +8,12 @@ from flask import (
 )
 from werkzeug.utils import secure_filename
 from db import get_conn, get_settings as load_settings, get_default_tenant_id
+from db import get_tenant
 from vac_bot.curator import get_curator_dashboard_state, run_change_detection
+from werkzeug.security import generate_password_hash
+import requests
+import re
+import time
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 
@@ -57,13 +62,24 @@ def admin_required(f):
 
 @admin_bp.app_context_processor
 def inject_admin_brand_name():
-    settings = load_settings(session.get("tenant_id"))
+    tid = session.get("tenant_id") or get_default_tenant_id()
+    settings = load_settings(tid)
     theme = (settings.get("theme") or DEFAULT_THEME).strip().lower()
     if theme not in THEME_OPTIONS:
         theme = DEFAULT_THEME
+    tenant = get_tenant(tid)
+    tenant_name = tenant.get("name") if tenant else "Tenant"
+    tenant_slug = tenant.get("slug") if tenant else "default"
+    bot_avatar = settings.get("bot_avatar") or ""
+    bot_avatar_url = url_for("admin.tenant_avatar", tenant_id=tid) if bot_avatar else None
     return {
         "admin_brand_name": settings.get("bot_name") or DEFAULT_BOT_NAME,
         "admin_theme": theme,
+        "tenant_name": tenant_name,
+        "tenant_slug": tenant_slug,
+        "tenant_id": tid,
+        "tenant_plan": "Pro plan",
+        "bot_avatar_url": bot_avatar_url,
     }
 
 @admin_bp.route("/login", methods=["GET", "POST"])
@@ -104,9 +120,13 @@ def settings():
         theme = request.form.get("theme", DEFAULT_THEME).strip().lower()
         if theme not in THEME_OPTIONS:
             theme = DEFAULT_THEME
+        tenant_id = session.get("tenant_id") or get_default_tenant_id()
         conn = get_conn()
+        row = conn.execute("SELECT id FROM settings WHERE tenant_id=?", (tenant_id,)).fetchone()
+        if not row:
+            conn.execute("INSERT INTO settings (tenant_id, bot_name) VALUES (?, ?)", (tenant_id, request.form.get("bot_name", "").strip() or DEFAULT_BOT_NAME))
         conn.execute(
-            "UPDATE settings SET bot_name=?, theme=?, personality=?, tone=?, purpose=?, instructions=?, updated_at=? WHERE id=1",
+            "UPDATE settings SET bot_name=?, theme=?, personality=?, tone=?, purpose=?, instructions=?, updated_at=? WHERE tenant_id=?",
             (
                 request.form.get("bot_name", "").strip() or DEFAULT_BOT_NAME,
                 theme,
@@ -115,8 +135,18 @@ def settings():
                 request.form.get("purpose", ""),
                 request.form.get("instructions", ""),
                 datetime.now(timezone.utc).isoformat(),
+                tenant_id,
             )
         )
+        avatar = request.files.get("bot_avatar")
+        if avatar and avatar.filename:
+            ext = avatar.filename.rsplit(".", 1)[-1].lower() if "." in avatar.filename else "png"
+            if ext in ("png", "jpg", "jpeg", "gif", "webp"):
+                avatars_dir = Path(current_app.root_path) / "uploads" / "avatars"
+                avatars_dir.mkdir(parents=True, exist_ok=True)
+                avatar_path = avatars_dir / f"tenant_{tenant_id}.{ext}"
+                avatar.save(str(avatar_path))
+                conn.execute("UPDATE settings SET bot_avatar=? WHERE tenant_id=?", (f"tenant_{tenant_id}.{ext}", tenant_id))
         conn.commit()
         conn.close()
         from vac_bot.chain import rebuild_chain
@@ -133,16 +163,41 @@ def settings():
         purpose_options=PURPOSE_OPTIONS,
     )
 
+@admin_bp.route("/avatar/<int:tenant_id>")
+def tenant_avatar(tenant_id):
+    conn = get_conn()
+    row = conn.execute("SELECT bot_avatar FROM settings WHERE tenant_id=?", (tenant_id,)).fetchone()
+    conn.close()
+    if not row or not row["bot_avatar"]:
+        return "", 204
+    avatar_path = Path(current_app.root_path) / "uploads" / "avatars" / row["bot_avatar"]
+    if not avatar_path.exists():
+        return "", 204
+    ext = avatar_path.suffix.lower().lstrip(".")
+    mime = {"png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg", "gif": "image/gif", "webp": "image/webp"}.get(ext, "image/png")
+    return open(avatar_path, "rb").read(), 200, {"Content-Type": mime, "Cache-Control": "max-age=86400"}
+
 @admin_bp.route("/knowledge")
 @admin_required
 def knowledge():
+    tenant_id = session.get("tenant_id") or get_default_tenant_id()
     conn = get_conn()
-    urls = conn.execute("SELECT * FROM urls ORDER BY created_at DESC").fetchall()
-    docs = conn.execute("SELECT * FROM documents ORDER BY created_at DESC").fetchall()
+    urls = conn.execute("SELECT * FROM urls WHERE tenant_id=? ORDER BY created_at DESC", (tenant_id,)).fetchall()
+    docs = conn.execute("SELECT * FROM documents WHERE tenant_id=? ORDER BY created_at DESC", (tenant_id,)).fetchall()
     conn.close()
+    pdfs = [d for d in docs if d["doc_type"] in (None, "", "pdf")]
+    images = [d for d in docs if d["doc_type"] == "image"]
+    tables = [d for d in docs if d["doc_type"] == "table"]
+    slides = [d for d in docs if d["doc_type"] == "slides"]
+    scanned = [d for d in docs if d["doc_type"] == "scanned"]
     return render_template("admin/knowledge.html",
                            urls=[dict(r) for r in urls],
-                           docs=[dict(r) for r in docs])
+                           docs=[dict(r) for r in docs],
+                           pdfs=[dict(r) for r in pdfs],
+                           images=[dict(r) for r in images],
+                           tables=[dict(r) for r in tables],
+                           slides=[dict(r) for r in slides],
+                           scanned=[dict(r) for r in scanned])
 
 
 @admin_bp.route("/curator")
@@ -161,12 +216,293 @@ def curator():
 @admin_required
 def curator_scan():
     tenant_id = session.get("tenant_id") or get_default_tenant_id()
-    result = run_change_detection(tenant_id=tenant_id)
-    message = f"Curator scan complete: {result['changed']} changed source(s), {result['queued']} queued for review."
-    if result["errors"]:
-        message += f" {len(result['errors'])} scan error(s)."
-    flash(message, "success" if not result["errors"] else "error")
+    try:
+        from vac_bot.tasks import run_change_detection_task
+        task = run_change_detection_task.delay(tenant_id=tenant_id)
+        flash(f"Curator scan queued. Task {task.id} will update the work queue in the background.", "success")
+    except Exception as exc:
+        flash(f"Could not queue curator scan: {exc}", "error")
     return redirect(url_for("admin.curator"))
+
+
+@admin_bp.route("/curator/item/<int:item_id>/action", methods=["POST"])
+@admin_required
+def curator_item_action(item_id):
+    action = (request.form.get("action") or "").strip().lower()
+    tenant_id = session.get("tenant_id") or get_default_tenant_id()
+    conn = get_conn()
+    row = conn.execute(
+        "SELECT * FROM curator_queue WHERE id=? AND tenant_id=?",
+        (item_id, tenant_id),
+    ).fetchone()
+    if not row:
+        conn.close()
+        flash("Queue item not found.", "error")
+        return redirect(url_for("admin.curator"))
+
+    if action == "approve":
+        conn.execute(
+            "UPDATE curator_queue SET status=?, completed_at=? WHERE id=?",
+            ("approved", datetime.now(timezone.utc).isoformat(), item_id),
+        )
+        conn.commit()
+        conn.close()
+        try:
+            from vac_bot.tasks import run_reindex_task
+            run_reindex_task.delay(tenant_id=tenant_id)
+            flash("Item approved and re-index queued.", "success")
+        except Exception as exc:
+            flash(f"Item approved, but re-index could not be queued: {exc}", "error")
+        return redirect(url_for("admin.curator"))
+
+    if action == "dismiss":
+        conn.execute(
+            "UPDATE curator_queue SET status=?, completed_at=? WHERE id=?",
+            ("dismissed", datetime.now(timezone.utc).isoformat(), item_id),
+        )
+        conn.commit()
+        conn.close()
+        flash("Item dismissed.", "success")
+        return redirect(url_for("admin.curator"))
+
+    conn.close()
+    flash("Unknown queue action.", "error")
+    return redirect(url_for("admin.curator"))
+
+
+@admin_bp.route("/access")
+@admin_required
+def access():
+    tenant_id = session.get("tenant_id") or get_default_tenant_id()
+    conn = get_conn()
+    users = conn.execute("SELECT id, username, role FROM users WHERE tenant_id=?", (tenant_id,)).fetchall()
+    conn.close()
+    admins = [dict(u) for u in users] if users else []
+    invite_result = {
+        "user": session.pop("last_invited_user", None),
+        "temporary_password": session.pop("last_temporary_password", None),
+    }
+    return render_template("admin/access.html", admins=admins, invite_result=invite_result)
+
+
+@admin_bp.route("/access/users/add", methods=["POST"])
+@admin_required
+def add_user():
+    tenant_id = session.get("tenant_id") or get_default_tenant_id()
+    email = (request.form.get("email") or "").strip()
+    password = (request.form.get("password") or "").strip()
+    role = (request.form.get("role") or "viewer").strip()
+    if not email:
+        flash("Email is required", "error")
+        return redirect(url_for("admin.access"))
+    generated_pw = None
+    if not password:
+        # generate a temporary password
+        import secrets
+        password = secrets.token_urlsafe(8)
+        generated_pw = password
+    pw_hash = generate_password_hash(password)
+    import time
+    last_error = None
+    for attempt in range(3):
+        conn = None
+        try:
+            conn = get_conn()
+            conn.execute("BEGIN IMMEDIATE")
+            conn.execute(
+                "INSERT INTO users (tenant_id, username, password_hash, role) VALUES (?, ?, ?, ?)",
+                (tenant_id, email, pw_hash, role),
+            )
+            conn.commit()
+            session["last_invited_user"] = email
+            session["last_temporary_password"] = password
+            flash(f"User {email} created.", "success")
+            return redirect(url_for("admin.access"))
+        except Exception as exc:
+            last_error = exc
+            if conn is not None:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+            if conn is not None:
+                conn.close()
+            if "database is locked" in str(exc).lower() and attempt < 2:
+                time.sleep(0.25 * (attempt + 1))
+                continue
+            break
+        finally:
+            if conn is not None:
+                conn.close()
+    flash(f"Could not create user: {last_error}", "error")
+    return redirect(url_for("admin.access"))
+
+
+@admin_bp.route("/access/users/<int:user_id>/edit", methods=["POST"])
+@admin_required
+def edit_user(user_id):
+    tenant_id = session.get("tenant_id") or get_default_tenant_id()
+    role = (request.form.get("role") or "").strip()
+    if role not in ("viewer", "admin"):
+        flash("Invalid role.", "error")
+        return redirect(url_for("admin.access"))
+    conn = get_conn()
+    user = conn.execute(
+        "SELECT * FROM users WHERE id=? AND tenant_id=?", (user_id, tenant_id)
+    ).fetchone()
+    if not user:
+        conn.close()
+        flash("User not found.", "error")
+        return redirect(url_for("admin.access"))
+    conn.execute("UPDATE users SET role=? WHERE id=?", (role, user_id))
+    conn.commit()
+    conn.close()
+    flash(f"User {user['username']} role updated to {role}.", "success")
+    return redirect(url_for("admin.access"))
+
+
+@admin_bp.route("/access/users/<int:user_id>/delete", methods=["POST"])
+@admin_required
+def delete_user(user_id):
+    tenant_id = session.get("tenant_id") or get_default_tenant_id()
+    conn = get_conn()
+    user = conn.execute(
+        "SELECT * FROM users WHERE id=? AND tenant_id=?", (user_id, tenant_id)
+    ).fetchone()
+    if not user:
+        conn.close()
+        flash("User not found.", "error")
+        return redirect(url_for("admin.access"))
+    conn.execute("DELETE FROM users WHERE id=? AND tenant_id=?", (user_id, tenant_id))
+    conn.commit()
+    conn.close()
+    flash(f"User {user['username']} deleted.", "success")
+    return redirect(url_for("admin.access"))
+
+
+@admin_bp.route("/tenants/new", methods=["GET", "POST"])
+@admin_required
+def new_tenant():
+    if request.method == "POST":
+        name = (request.form.get("name") or "").strip()
+        if not name:
+            flash("Tenant name required", "error")
+            return redirect(url_for("admin.new_tenant"))
+        slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-") or "tenant"
+        last_error = None
+        for attempt in range(3):
+            conn = None
+            try:
+                conn = get_conn()
+                safe_name = name
+                while conn.execute("SELECT 1 FROM tenants WHERE name=?", (safe_name,)).fetchone():
+                    safe_name = re.sub(r"\s*\(\d+\)$", "", safe_name).strip()
+                    n = 1
+                    while conn.execute("SELECT 1 FROM tenants WHERE name=?", (f"{safe_name} ({n})",)).fetchone():
+                        n += 1
+                    safe_name = f"{safe_name} ({n})"
+                name = safe_name
+                while conn.execute("SELECT 1 FROM tenants WHERE slug=?", (slug,)).fetchone():
+                    n = 1
+                    while conn.execute("SELECT 1 FROM tenants WHERE slug=?", (f"{slug}-{n}",)).fetchone():
+                        n += 1
+                    slug = f"{slug}-{n}"
+                conn.execute("BEGIN IMMEDIATE")
+                conn.execute("INSERT INTO tenants (name, slug) VALUES (?, ?)", (name, slug))
+                tenant_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+                conn.execute("INSERT INTO settings (tenant_id, bot_name) VALUES (?, ?)", (tenant_id, f"{name} Assistant"))
+                conn.commit()
+                conn.close()
+                # create an empty chroma collection by calling vectordb rebuild with no docs
+                try:
+                    vurl = os.getenv("VEKTORDB_URL", "http://vectordb:5001")
+                    requests.post(f"{vurl}/rebuild", json={"documents": []}, headers={"X-Tenant-Id": str(tenant_id)}, timeout=10)
+                except Exception:
+                    pass
+                flash(f"Tenant '{name}' created.", "success")
+                return redirect(url_for("admin.dashboard"))
+            except Exception as exc:
+                last_error = exc
+                if conn is not None:
+                    try:
+                        conn.rollback()
+                    except Exception:
+                        pass
+                if conn is not None:
+                    conn.close()
+                if "database is locked" in str(exc).lower() and attempt < 2:
+                    time.sleep(0.25 * (attempt + 1))
+                    continue
+                break
+            finally:
+                if conn is not None:
+                    conn.close()
+        flash(f"Could not create tenant: {last_error}", "error")
+        return redirect(url_for("admin.new_tenant"))
+    return render_template("admin/new_tenant.html")
+
+@admin_bp.route("/tenants")
+@admin_required
+def tenants():
+    conn = get_conn()
+    rows = conn.execute("SELECT * FROM tenants ORDER BY id").fetchall()
+    conn.close()
+    return render_template("admin/tenants.html", tenants=[dict(r) for r in rows])
+
+@admin_bp.route("/tenants/<int:tenant_id>/edit", methods=["GET", "POST"])
+@admin_required
+def edit_tenant(tenant_id):
+    conn = get_conn()
+    tenant = conn.execute("SELECT * FROM tenants WHERE id=?", (tenant_id,)).fetchone()
+    if not tenant:
+        conn.close()
+        flash("Tenant not found", "error")
+        return redirect(url_for("admin.tenants"))
+    if request.method == "POST":
+        new_name = (request.form.get("name") or "").strip()
+        if not new_name:
+            flash("Name is required", "error")
+            conn.close()
+            return render_template("admin/edit_tenant.html", tenant=dict(tenant))
+        try:
+            conn.execute("UPDATE tenants SET name=?, updated_at=CURRENT_TIMESTAMP WHERE id=?", (new_name, tenant_id))
+            conn.commit()
+            conn.close()
+            flash("Tenant updated.", "success")
+            return redirect(url_for("admin.tenants"))
+        except Exception as e:
+            conn.rollback()
+            conn.close()
+            flash(f"Could not update: {e}", "error")
+            return render_template("admin/edit_tenant.html", tenant=dict(tenant))
+    conn.close()
+    return render_template("admin/edit_tenant.html", tenant=dict(tenant))
+
+@admin_bp.route("/tenants/<int:tenant_id>/delete", methods=["POST"])
+@admin_required
+def delete_tenant(tenant_id):
+    if tenant_id == 1:
+        flash("Cannot delete the default tenant.", "error")
+        return redirect(url_for("admin.tenants"))
+    conn = get_conn()
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        conn.execute("DELETE FROM users WHERE tenant_id=?", (tenant_id,))
+        conn.execute("DELETE FROM settings WHERE tenant_id=?", (tenant_id,))
+        conn.execute("DELETE FROM urls WHERE tenant_id=?", (tenant_id,))
+        conn.execute("DELETE FROM documents WHERE tenant_id=?", (tenant_id,))
+        conn.execute("DELETE FROM index_log WHERE tenant_id=?", (tenant_id,))
+        conn.execute("DELETE FROM curator_queue WHERE tenant_id=?", (tenant_id,))
+        conn.execute("DELETE FROM source_snapshots WHERE tenant_id=?", (tenant_id,))
+        conn.execute("DELETE FROM tenants WHERE id=?", (tenant_id,))
+        conn.commit()
+        conn.close()
+        flash("Tenant deleted.", "success")
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        flash(f"Could not delete: {e}", "error")
+    return redirect(url_for("admin.tenants"))
 
 @admin_bp.route("/knowledge/url/add", methods=["POST"])
 @admin_required
@@ -175,8 +511,9 @@ def add_url():
     if not url:
         flash("URL is required", "error")
         return redirect(url_for("admin.knowledge"))
+    tenant_id = session.get("tenant_id") or get_default_tenant_id()
     conn = get_conn()
-    conn.execute("INSERT INTO urls (url) VALUES (?)", (url,))
+    conn.execute("INSERT INTO urls (tenant_id, url) VALUES (?, ?)", (tenant_id, url))
     conn.commit()
     conn.close()
     flash("URL added.", "success")
@@ -185,8 +522,9 @@ def add_url():
 @admin_bp.route("/knowledge/url/<int:url_id>/delete", methods=["POST"])
 @admin_required
 def delete_url(url_id):
+    tenant_id = session.get("tenant_id") or get_default_tenant_id()
     conn = get_conn()
-    conn.execute("DELETE FROM urls WHERE id=?", (url_id,))
+    conn.execute("DELETE FROM urls WHERE id=? AND tenant_id=?", (url_id, tenant_id))
     conn.commit()
     conn.close()
     flash("URL removed.", "success")
@@ -194,42 +532,56 @@ def delete_url(url_id):
         return redirect(url_for("admin.rebuild"))
     return redirect(url_for("admin.knowledge"))
 
-@admin_bp.route("/knowledge/pdf/upload", methods=["POST"])
+ALLOWED_EXTENSIONS = {
+    "pdf": "pdf",
+    "png": "image", "jpg": "image", "jpeg": "image", "gif": "image", "webp": "image",
+    "xlsx": "table", "csv": "table",
+    "pptx": "slides",
+}
+
+@admin_bp.route("/knowledge/doc/upload", methods=["POST"])
 @admin_required
-def upload_pdf():
+def upload_doc():
     if "file" not in request.files:
         flash("No file selected", "error")
         return redirect(url_for("admin.knowledge"))
     file = request.files["file"]
-    if not file or not file.filename.lower().endswith(".pdf"):
-        flash("Only PDF files are allowed", "error")
+    if not file or not file.filename:
+        flash("No file selected", "error")
+        return redirect(url_for("admin.knowledge"))
+    ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""
+    doc_type = ALLOWED_EXTENSIONS.get(ext)
+    if not doc_type:
+        flash(f"Unsupported file type (.{ext}). Allowed: pdf, png, jpg, jpeg, gif, webp, xlsx, csv, pptx", "error")
         return redirect(url_for("admin.knowledge"))
     filename = secure_filename(file.filename)
     uploads_dir = Path(current_app.root_path) / "uploads"
     uploads_dir.mkdir(exist_ok=True)
     filepath = uploads_dir / filename
     file.save(str(filepath))
+    tenant_id = session.get("tenant_id") or get_default_tenant_id()
     conn = get_conn()
-    conn.execute("INSERT INTO documents (filename, filepath, status) VALUES (?, ?, ?)",
-                 (filename, str(filepath), "ready"))
+    conn.execute("INSERT INTO documents (tenant_id, filename, filepath, status, doc_type) VALUES (?, ?, ?, ?, ?)",
+                 (tenant_id, filename, str(filepath), "ready", doc_type))
     conn.commit()
     conn.close()
     flash(f"Uploaded {filename}. Rebuild index to include it.", "success")
     return redirect(url_for("admin.knowledge"))
 
-@admin_bp.route("/knowledge/pdf/<int:doc_id>/delete", methods=["POST"])
+@admin_bp.route("/knowledge/doc/<int:doc_id>/delete", methods=["POST"])
 @admin_required
-def delete_pdf(doc_id):
+def delete_doc(doc_id):
+    tenant_id = session.get("tenant_id") or get_default_tenant_id()
     conn = get_conn()
-    row = conn.execute("SELECT filepath FROM documents WHERE id=?", (doc_id,)).fetchone()
+    row = conn.execute("SELECT filepath, filename FROM documents WHERE id=? AND tenant_id=?", (doc_id, tenant_id)).fetchone()
     if row:
         fp = row["filepath"]
         if os.path.exists(fp):
             os.remove(fp)
-    conn.execute("DELETE FROM documents WHERE id=?", (doc_id,))
+    conn.execute("DELETE FROM documents WHERE id=? AND tenant_id=?", (doc_id, tenant_id))
     conn.commit()
     conn.close()
-    flash("PDF removed.", "success")
+    flash(f"Removed {row['filename']}.", "success")
     if request.form.get("rebuild"):
         return redirect(url_for("admin.rebuild"))
     return redirect(url_for("admin.knowledge"))
@@ -247,7 +599,8 @@ def rebuild():
     conn.close()
 
     try:
-        result = rebuild_vectordb()
+        tenant_id = session.get("tenant_id") or get_default_tenant_id()
+        result = rebuild_vectordb(tenant_id=tenant_id)
         rebuild_chain()
         count = result.get("count", 0)
         warnings = result.get("warnings", [])

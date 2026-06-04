@@ -41,11 +41,31 @@ def load_urls_from_db(tenant_id=None):
 def load_pdfs_from_db(tenant_id=None):
     conn = get_conn()
     if tenant_id is None:
-        rows = conn.execute("SELECT id, filename, filepath FROM documents").fetchall()
+        rows = conn.execute("SELECT id, filename, filepath FROM documents WHERE doc_type IS NULL OR doc_type='' OR doc_type='pdf'").fetchall()
     else:
-        rows = conn.execute("SELECT id, filename, filepath FROM documents WHERE tenant_id=?", (tenant_id,)).fetchall()
+        rows = conn.execute("SELECT id, filename, filepath FROM documents WHERE tenant_id=? AND (doc_type IS NULL OR doc_type='' OR doc_type='pdf')", (tenant_id,)).fetchall()
     conn.close()
     return [{"id": r["id"], "filename": r["filename"], "filepath": r["filepath"]} for r in rows]
+
+def load_multimodal_from_db(tenant_id=None, doc_type=None):
+    conn = get_conn()
+    query = "SELECT id, filename, filepath, doc_type FROM documents"
+    params = []
+    conditions = []
+    if tenant_id is not None:
+        conditions.append("tenant_id=?")
+        params.append(tenant_id)
+    if doc_type is not None:
+        conditions.append("doc_type=?")
+        params.append(doc_type)
+    else:
+        conditions.append("doc_type IN ('image','table','slides','scanned')")
+    if conditions:
+        query += " WHERE " + " AND ".join(conditions)
+    query += " ORDER BY id"
+    rows = conn.execute(query, params).fetchall()
+    conn.close()
+    return [{"id": r["id"], "filename": r["filename"], "filepath": r["filepath"], "doc_type": r["doc_type"]} for r in rows]
 
 def scrape_url(url, timeout=30):
     resp = requests.get(url, headers=REQUEST_HEADERS, timeout=timeout)
@@ -230,26 +250,61 @@ def collect_documents(tenant_id=None):
             now,
         ))
 
-    if not all_docs:
-        for i, faq in enumerate(STATIC_FAQ):
-            text = f"Q: {faq['question']}\nA: {faq['answer']}"
-            all_docs.extend(chunk_source_text(
-                text,
-                {
-                    "source": "static",
-                    "source_link": "static_faq",
-                    "source_file": "static_faq",
-                    "source_type": "static",
-                    "title": faq["question"][:80],
-                    "section_heading": faq["question"][:80],
-                    "page_number": None,
-                    "timestamp": now,
-                    "version": 1,
-                    "source_id": f"static_{i}",
-                },
-                splitter,
-                now,
-            ))
+    multimodal_entries = load_multimodal_from_db(tenant_id=tenant_id)
+    for entry in multimodal_entries:
+        try:
+            version = get_next_version(entry["doc_type"], entry["id"])
+            base_meta = {
+                "source": f"{entry['doc_type']}:{entry['filename']}",
+                "source_link": entry["filepath"],
+                "source_file": entry["filepath"],
+                "source_type": entry["doc_type"],
+                "title": entry["filename"],
+                "section_heading": entry["filename"],
+                "page_number": None,
+                "timestamp": now,
+                "version": version,
+                "source_id": str(entry["id"]),
+            }
+
+            if entry["doc_type"] == "image":
+                from vac_bot.multimodal import extract_image_text
+                text = extract_image_text(entry["filepath"])
+                if text.strip():
+                    all_docs.extend(chunk_source_text(text, dict(base_meta), splitter, now))
+                    print(f"Extracted image: {entry['filename']} ({len(text)} chars)")
+
+            elif entry["doc_type"] == "table":
+                from vac_bot.multimodal import extract_table_text
+                text = extract_table_text(entry["filepath"])
+                if text.strip():
+                    all_docs.extend(chunk_source_text(text, dict(base_meta), splitter, now))
+                    print(f"Extracted table: {entry['filename']} ({len(text)} chars)")
+
+            elif entry["doc_type"] == "slides":
+                from vac_bot.multimodal import extract_slides_text
+                slides = extract_slides_text(entry["filepath"])
+                for slide in slides:
+                    meta = dict(base_meta)
+                    meta["page_number"] = slide["slide_number"]
+                    meta["section_heading"] = f"{entry['filename']} — Slide {slide['slide_number']}"
+                    all_docs.extend(chunk_source_text(slide["text"], meta, splitter, now))
+                print(f"Extracted slides: {entry['filename']} ({len(slides)} slides)")
+
+            elif entry["doc_type"] == "scanned":
+                from vac_bot.multimodal import extract_scanned_pdf_text
+                pages = extract_scanned_pdf_text(entry["filepath"])
+                for page in pages:
+                    meta = dict(base_meta)
+                    meta["page_number"] = page["page_number"]
+                    meta["section_heading"] = f"{entry['filename']} — Page {page['page_number']}"
+                    all_docs.extend(chunk_source_text(page["text"], meta, splitter, now))
+                print(f"Extracted scanned PDF: {entry['filename']} ({len(pages)} pages)")
+
+        except Exception as e:
+            msg = f"{entry['doc_type']} failed ({entry['filename']}): {e}"
+            print(msg)
+            errors.append(msg)
 
     return all_docs, errors
 
@@ -280,6 +335,10 @@ def rebuild_vectordb(tenant_id=None):
             mark_indexed("url", url_ids)
         if pdf_ids:
             mark_indexed("pdf", pdf_ids)
+        for dt in ("image", "table", "slides", "scanned"):
+            ids = sorted({int(d.metadata.get("source_id")) for d in chunks if d.metadata.get("source_type") == dt and d.metadata.get("source_id")})
+            if ids:
+                mark_indexed(dt, ids)
     except Exception:
         pass
 

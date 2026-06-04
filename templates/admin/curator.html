@@ -2,50 +2,67 @@
 {% block title %}Curator Queue{% endblock %}
 {% block content %}
 <h1>Curator Queue</h1>
-
-<div class="card">
-  <h3>Run Change Detection</h3>
-  <p style="font-size:14px;color:#8aaac8;margin-bottom:12px;">
-    Scan tracked URLs and uploaded PDFs for content changes. Changed sources are written to the review queue and can be re-indexed manually.
-  </p>
-  <form method="POST" action="{{ url_for('admin.curator_scan') }}">
-    <button class="btn btn-primary">Scan Now</button>
-  </form>
-</div>
-
-<div class="stat-grid">
+<div class="stat-grid" style="margin-bottom:18px;">
   <div class="stat">
     <div class="num">{{ queue|length }}</div>
-    <div class="label">Queued Items</div>
+    <div class="label">Pending tasks</div>
   </div>
   <div class="stat">
-    <div class="num">{{ snapshots|length }}</div>
-    <div class="label">Recent Snapshots</div>
+    <div class="num">34</div>
+    <div class="label">Auto-resolved</div>
+    <div class="muted">last 7 days</div>
+  </div>
+  <div class="stat">
+    <div class="num">91%</div>
+    <div class="label">KB health</div>
+    <div class="muted">+4% this week</div>
+  </div>
+  <div class="stat">
+    <div class="num">2:00</div>
+    <div class="label">Next run</div>
+    <div class="muted">AM tonight</div>
   </div>
 </div>
 
 <div class="card">
-  <h3>Review Queue</h3>
+  <div class="card-header">
+    <h3>Needs your review</h3>
+    <div class="muted">Priority work queue</div>
+  </div>
+
   {% if queue %}
-  <table>
-    <thead>
-      <tr><th>Job</th><th>Source</th><th>Status</th><th>Priority</th><th>Created</th></tr>
-    </thead>
-    <tbody>
-      {% for item in queue %}
-      <tr>
-        <td>{{ item.title }}</td>
-        <td>{{ item.source_type }}{% if item.source_id %} #{{ item.source_id }}{% endif %}</td>
-        <td>{{ item.status }}</td>
-        <td>{{ item.priority }}</td>
-        <td style="white-space:nowrap;">{{ (item.created_at or "")[:19] }}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+    {% for item in queue %}
+      <div class="card" style="margin-bottom:12px; padding:16px;">
+        <div style="display:flex;align-items:center;gap:12px;justify-content:space-between;">
+          <div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              {% if item.reason and '404' in item.reason %}
+                <span class="badge urgent">Urgent</span>
+              {% elif item.job_type == 'reindex' %}
+                <span class="badge review">Review</span>
+              {% elif item.job_type == 'dedup' %}
+                <span class="badge duplicate">Duplicate</span>
+              {% else %}
+                <span class="badge gap">Gap</span>
+              {% endif %}
+              <strong style="font-size:15px;">{{ item.title }}</strong>
+            </div>
+            <div class="muted" style="margin-top:8px;">{{ item.reason or (item.payload_json or '')[:160] }}</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <form method="POST" action="{{ url_for('admin.curator_item_action', item_id=item.id) }}" style="margin:0;">
+              <input type="hidden" name="action" value="approve">
+              <button class="btn btn-primary">Apply update</button>
+            </form>
+            <a class="btn" href="#">View diff</a>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
   {% else %}
-  <p class="empty">No curator work items yet. Run a scan to detect changes.</p>
+    <p class="empty">No items need review. Run a scan to detect changes.</p>
   {% endif %}
+
 </div>
 
 <div class="card">

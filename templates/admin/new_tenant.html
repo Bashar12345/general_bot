@@ -1,0 +1,14 @@
+{% extends "admin/base.html" %}
+{% block title %}Create Tenant{% endblock %}
+{% block content %}
+<h1>Create New Tenant</h1>
+<div class="card">
+  <form method="POST">
+    <div class="form-group">
+      <label>Tenant Name</label>
+      <input name="name" placeholder="Acme Corp" required>
+    </div>
+    <button class="btn btn-primary">Create Tenant</button>
+  </form>
+</div>
+{% endblock %}

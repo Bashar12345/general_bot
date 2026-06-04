@@ -10,16 +10,18 @@ INSTANCE_DIR.mkdir(exist_ok=True)
 DB_PATH = INSTANCE_DIR / "admin.db"
 
 def get_conn():
-    conn = sqlite3.connect(str(DB_PATH))
+    conn = sqlite3.connect(str(DB_PATH), timeout=30)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")
+    conn.execute("PRAGMA busy_timeout=30000")
     return conn
 
 def migrate_db():
     conn = get_conn()
     migrations = [
         "ALTER TABLE settings ADD COLUMN tenant_id INTEGER DEFAULT 1",
+        "ALTER TABLE settings ADD COLUMN bot_avatar TEXT DEFAULT ''",
         "ALTER TABLE settings ADD COLUMN theme TEXT DEFAULT 'dark'",
         "ALTER TABLE urls ADD COLUMN tenant_id INTEGER DEFAULT 1",
         "ALTER TABLE urls ADD COLUMN last_indexed_at TIMESTAMP",
@@ -32,6 +34,7 @@ def migrate_db():
         "ALTER TABLE urls ADD COLUMN last_change_at TIMESTAMP",
         "ALTER TABLE urls ADD COLUMN crawl_history_json TEXT DEFAULT '[]'",
         "ALTER TABLE documents ADD COLUMN tenant_id INTEGER DEFAULT 1",
+        "ALTER TABLE documents ADD COLUMN doc_type TEXT DEFAULT 'pdf'",
         "ALTER TABLE documents ADD COLUMN last_indexed_at TIMESTAMP",
         "ALTER TABLE documents ADD COLUMN version INTEGER DEFAULT 0",
         "ALTER TABLE documents ADD COLUMN content_hash TEXT",
@@ -193,6 +196,13 @@ def get_default_tenant_id():
     row = conn.execute("SELECT id FROM tenants ORDER BY id LIMIT 1").fetchone()
     conn.close()
     return int(row[0]) if row else 1
+
+
+def get_tenant(tenant_id):
+    conn = get_conn()
+    row = conn.execute("SELECT * FROM tenants WHERE id=?", (tenant_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
 
 def mark_indexed(source_type, source_ids):
     now = datetime.now(timezone.utc).isoformat()

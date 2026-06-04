@@ -4,6 +4,8 @@ from celery import Celery
 
 from db import get_default_tenant_id
 from vac_bot.curator import run_change_detection
+from vac_bot.loader import rebuild_vectordb
+from vac_bot.chain import rebuild_chain
 
 
 BROKER_URL = os.getenv("CELERY_BROKER_URL", os.getenv("REDIS_URL", "redis://redis:6379/0"))
@@ -32,3 +34,11 @@ celery_app.conf.update(
 @celery_app.task(name="vac_bot.tasks.run_change_detection_task")
 def run_change_detection_task(tenant_id=None):
     return run_change_detection(tenant_id=tenant_id or get_default_tenant_id())
+
+
+@celery_app.task(name="vac_bot.tasks.run_reindex_task")
+def run_reindex_task(tenant_id=None):
+    tenant_id = tenant_id or get_default_tenant_id()
+    result = rebuild_vectordb(tenant_id=tenant_id)
+    rebuild_chain()
+    return result

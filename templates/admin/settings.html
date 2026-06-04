@@ -4,22 +4,33 @@
 <h1>Bot Settings</h1>
 
 <div class="card">
-  <form method="POST">
-    <div class="form-group">
-      <label>Bot Name</label>
-      <input type="text" name="bot_name" value="{{ settings.bot_name }}" placeholder="{{ admin_brand_name }}">
+  <form method="POST" enctype="multipart/form-data" style="display:flex;flex-direction:column;gap:16px;">
+    <div style="display:flex;align-items:center;gap:16px;">
+      {% if bot_avatar_url %}
+      <img src="{{ bot_avatar_url }}" alt="Avatar" style="width:56px;height:56px;border-radius:50%;object-fit:cover;border:2px solid var(--border);flex-shrink:0;">
+      {% else %}
+      <div style="width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent-hover));display:flex;align-items:center;justify-content:center;color:var(--button-text);font-weight:700;font-size:22px;flex-shrink:0;">{{ (settings.bot_name or admin_brand_name)[0] }}</div>
+      {% endif %}
+      <div style="flex:1;">
+        <label style="margin-bottom:4px;">Bot Avatar</label>
+        <input type="file" name="bot_avatar" accept="image/png,image/jpeg,image/gif,image/webp">
+      </div>
     </div>
-    <div class="form-group">
-      <label>Theme</label>
-      <select name="theme">
+    <div style="display:flex;align-items:center;gap:16px;">
+      <label style="width:140px;flex-shrink:0;margin:0;">Bot Name</label>
+      <input type="text" name="bot_name" value="{{ settings.bot_name }}" placeholder="{{ admin_brand_name }}" style="flex:1;">
+    </div>
+    <div style="display:flex;align-items:center;gap:16px;">
+      <label style="width:140px;flex-shrink:0;margin:0;">Theme</label>
+      <select name="theme" style="flex:1;">
         {% for option in theme_options %}
           <option value="{{ option }}" {% if settings.theme == option %}selected{% endif %}>{{ option|title }} Mode</option>
         {% endfor %}
       </select>
     </div>
-    <div class="form-group">
-      <label>Personality</label>
-      <select name="personality">
+    <div style="display:flex;align-items:center;gap:16px;">
+      <label style="width:140px;flex-shrink:0;margin:0;">Personality</label>
+      <select name="personality" style="flex:1;">
         <option value="">Choose a personality</option>
         {% if settings.personality and settings.personality not in personality_options %}
           <option value="{{ settings.personality }}" selected>{{ settings.personality }} (current custom)</option>
@@ -29,9 +40,9 @@
         {% endfor %}
       </select>
     </div>
-    <div class="form-group">
-      <label>Tone</label>
-      <select name="tone">
+    <div style="display:flex;align-items:center;gap:16px;">
+      <label style="width:140px;flex-shrink:0;margin:0;">Tone</label>
+      <select name="tone" style="flex:1;">
         <option value="">Choose a tone</option>
         {% if settings.tone and settings.tone not in tone_options %}
           <option value="{{ settings.tone }}" selected>{{ settings.tone }} (current custom)</option>
@@ -41,9 +52,9 @@
         {% endfor %}
       </select>
     </div>
-    <div class="form-group">
-      <label>Purpose / Use Case</label>
-      <select name="purpose">
+    <div style="display:flex;align-items:center;gap:16px;">
+      <label style="width:140px;flex-shrink:0;margin:0;">Purpose</label>
+      <select name="purpose" style="flex:1;">
         <option value="">Choose a purpose</option>
         {% if settings.purpose and settings.purpose not in purpose_options %}
           <option value="{{ settings.purpose }}" selected>{{ settings.purpose }} (current custom)</option>
@@ -53,11 +64,13 @@
         {% endfor %}
       </select>
     </div>
-    <div class="form-group">
-      <label>Instructions / Fallback Message</label>
-      <textarea name="instructions" rows="4" placeholder="What to say when the bot doesn't know the answer.">{{ settings.instructions }}</textarea>
+    <div style="display:flex;align-items:flex-start;gap:16px;">
+      <label style="width:140px;flex-shrink:0;margin:0;padding-top:10px;">Instructions</label>
+      <textarea name="instructions" rows="4" placeholder="What to say when the bot doesn't know the answer." style="flex:1;">{{ settings.instructions }}</textarea>
     </div>
-    <button class="btn btn-primary">Save Settings</button>
+    <div style="display:flex;justify-content:flex-end;">
+      <button class="btn btn-primary">Save Settings</button>
+    </div>
   </form>
 </div>
 {% endblock %}

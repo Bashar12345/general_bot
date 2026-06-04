@@ -1,0 +1,45 @@
+{% extends "admin/base.html" %}
+{% block title %}Tenants{% endblock %}
+{% block content %}
+<h1>Tenants</h1>
+<div style="margin-bottom:16px;">
+  <a class="btn btn-primary" href="{{ url_for('admin.new_tenant') }}">+ New Tenant</a>
+</div>
+<div class="card">
+  {% if tenants %}
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Name</th>
+        <th>Slug</th>
+        <th>Status</th>
+        <th>Created</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for t in tenants %}
+      <tr>
+        <td>{{ t.id }}</td>
+        <td>{{ t.name }}</td>
+        <td>{{ t.slug }}</td>
+        <td><span class="badge {% if t.status == 'active' %}review{% else %}duplicate{% endif %}">{{ t.status }}</span></td>
+        <td>{{ t.created_at[:10] if t.created_at else '' }}</td>
+        <td>
+          <a class="btn btn-sm btn-primary" href="{{ url_for('admin.edit_tenant', tenant_id=t.id) }}">Edit</a>
+          {% if t.id != 1 %}
+          <form class="inline-form" method="POST" action="{{ url_for('admin.delete_tenant', tenant_id=t.id) }}" onsubmit="return confirm('Delete tenant &#39;{{ t.name }}&#39; and all its data?');">
+            <button class="btn btn-sm btn-danger">Delete</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty">No tenants yet.</div>
+  {% endif %}
+</div>
+{% endblock %}
