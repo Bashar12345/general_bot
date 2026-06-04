@@ -1,5 +1,6 @@
 import os
 import shutil
+import re
 from pathlib import Path
 from flask import Flask, request, jsonify
 from langchain_openai import OpenAIEmbeddings
@@ -21,6 +22,7 @@ CHROMA_DIR.mkdir(exist_ok=True)
 COLLECTION_NAME = "langchain"
 embeddings = OpenAIEmbeddings()
 _db = None
+_dbs = {}
 _client = None
 
 
@@ -47,36 +49,63 @@ def _get_or_create_client():
         )
     return _client
 
-def _load_or_create_db():
-    global _db, _client
+
+def _tenant_id_from_request():
+    tenant_id = request.headers.get("X-Tenant-Id")
+    if tenant_id is None or not str(tenant_id).strip():
+        return None
+    return str(tenant_id).strip()
+
+
+def _collection_name_for_tenant(tenant_id=None):
+    if tenant_id is None:
+        return COLLECTION_NAME
+    safe_tenant_id = re.sub(r"[^a-zA-Z0-9_.-]", "_", str(tenant_id).strip())
+    return f"kb_{safe_tenant_id}"
+
+def _load_or_create_db(tenant_id=None):
+    global _db, _client, _dbs
     sqlite_file = CHROMA_DIR / "chroma.sqlite3"
     if sqlite_file.exists() and sqlite_file.stat().st_size == 0:
         sqlite_file.unlink()
         print("Removed 0-byte chroma.sqlite3")
     try:
         client = _get_or_create_client()
+        collection_name = _collection_name_for_tenant(tenant_id)
+        client.get_or_create_collection(name=collection_name)
         _db = Chroma(
             embedding_function=embeddings,
             client=client,
-            collection_name=COLLECTION_NAME,
+            collection_name=collection_name,
         )
+        _dbs[collection_name] = _db
         print(f"ChromaDB ready at {CHROMA_DIR}")
     except Exception as e:
-        print(f"Creating fresh ChromaDB: {e}")
-        _clear_chroma_dir()
-        client = _get_or_create_client()
-        _db = Chroma.from_documents(
-            [], embeddings,
-            client=client,
-            collection_name=COLLECTION_NAME,
-        )
+        print(f"Creating fresh ChromaDB collection failed: {e}")
     return _db
 
-def get_db():
-    global _db
-    if _db is None:
-        _load_or_create_db()
-    return _db
+def get_db(tenant_id=None):
+    global _db, _dbs
+    collection_name = _collection_name_for_tenant(tenant_id)
+    if tenant_id is None and _db is not None:
+        return _db
+    if collection_name in _dbs:
+        return _dbs[collection_name]
+    return _load_or_create_db(tenant_id)
+
+
+def _clear_collection_for_tenant(tenant_id=None):
+    global _db, _dbs
+    collection_name = _collection_name_for_tenant(tenant_id)
+    try:
+        client = _get_or_create_client()
+        client.delete_collection(name=collection_name)
+    except Exception:
+        pass
+    _dbs.pop(collection_name, None)
+    if tenant_id is None:
+        _db = None
+    _load_or_create_db(tenant_id)
 
 def _clear_chroma_dir():
     global _db, _client
@@ -98,7 +127,7 @@ def _clear_chroma_dir():
 
 @app.route("/health")
 def health():
-    db = get_db()
+    db = get_db(_tenant_id_from_request())
     if db is None:
         return jsonify({"status": "error", "index_loaded": False})
     return jsonify({"status": "ok", "index_loaded": True})
@@ -108,7 +137,8 @@ def search():
     data = request.json or {}
     query = data.get("query", "")
     k = data.get("k", 5)
-    db = get_db()
+    tenant_id = _tenant_id_from_request()
+    db = get_db(tenant_id)
     if db is None:
         print("Search called but DB is not available")
         return jsonify({"documents": []})
@@ -130,7 +160,7 @@ def rebuild():
     if chromadb.api.client.SharedSystemClient._identifier_to_system:
         chromadb.api.client.SharedSystemClient.clear_system_cache()
         
-    _clear_chroma_dir()
+    tenant_id = _tenant_id_from_request()
     
     data = request.json or {}
     docs_data = data.get("documents", [])
@@ -138,16 +168,19 @@ def rebuild():
     
     global _db
     if not docs:
-        _load_or_create_db()
+        _load_or_create_db(tenant_id)
         return jsonify({"status": "ok", "count": 0, "warning": "no documents provided"})
         
     client = _get_or_create_client()
     try:
+        collection_name = _collection_name_for_tenant(tenant_id)
+        client.get_or_create_collection(name=collection_name)
         _db = Chroma.from_documents(
             docs, embeddings,
             client=client,
-            collection_name=COLLECTION_NAME,
+            collection_name=collection_name,
         )
+        _dbs[collection_name] = _db
         print(f"Rebuilt ChromaDB index with {len(docs)} chunks")
         return jsonify({"status": "ok", "count": len(docs)})
     except Exception as e:
@@ -158,8 +191,12 @@ def rebuild():
 def clear():
     if chromadb.api.client.SharedSystemClient._identifier_to_system:
         chromadb.api.client.SharedSystemClient.clear_system_cache()
-    _clear_chroma_dir()
-    _load_or_create_db()
+    tenant_id = _tenant_id_from_request()
+    if tenant_id is None:
+        _clear_chroma_dir()
+        _load_or_create_db()
+    else:
+        _clear_collection_for_tenant(tenant_id)
     return jsonify({"status": "ok"})
 
 if __name__ == "__main__":

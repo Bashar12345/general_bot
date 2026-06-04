@@ -1,4 +1,11 @@
 services:
+  redis:
+    image: redis:7-alpine
+    container_name: valr-redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
   vectordb:
     build: ./vectordb
     container_name: valr-vectordb
@@ -38,13 +45,55 @@ services:
       - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
       - VEKTORDB_URL=http://vectordb:5001
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
     volumes:
       - .:/app
       - vectordb_data:/app/chroma
     depends_on:
       - vectordb
+      - redis
     restart: unless-stopped
     command: flask run --host 0.0.0.0 --port 5000 --debug
+
+  worker:
+    build: .
+    container_name: valr-worker
+    env_file:
+      - .env
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - VEKTORDB_URL=http://vectordb:5001
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    volumes:
+      - .:/app
+    depends_on:
+      - redis
+      - vectordb
+    restart: unless-stopped
+    command: celery -A vac_bot.tasks.celery_app worker --loglevel=info
+
+  beat:
+    build: .
+    container_name: valr-beat
+    env_file:
+      - .env
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - VEKTORDB_URL=http://vectordb:5001
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    volumes:
+      - .:/app
+    depends_on:
+      - redis
+      - vectordb
+    restart: unless-stopped
+    command: celery -A vac_bot.tasks.celery_app beat --loglevel=info
 
 volumes:
   vectordb_data:

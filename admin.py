@@ -7,7 +7,8 @@ from flask import (
     session, jsonify, flash, current_app
 )
 from werkzeug.utils import secure_filename
-from db import get_conn, get_settings as load_settings
+from db import get_conn, get_settings as load_settings, get_default_tenant_id
+from vac_bot.curator import get_curator_dashboard_state, run_change_detection
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 
@@ -56,7 +57,7 @@ def admin_required(f):
 
 @admin_bp.app_context_processor
 def inject_admin_brand_name():
-    settings = load_settings()
+    settings = load_settings(session.get("tenant_id"))
     theme = (settings.get("theme") or DEFAULT_THEME).strip().lower()
     if theme not in THEME_OPTIONS:
         theme = DEFAULT_THEME
@@ -70,6 +71,8 @@ def login():
     if request.method == "POST":
         if request.form.get("username") == ADMIN_USER and request.form.get("password") == ADMIN_PASS:
             session["admin"] = True
+            session["tenant_id"] = get_default_tenant_id()
+            session["user_role"] = "admin"
             return redirect(url_for("admin.dashboard"))
         flash("Invalid credentials", "error")
     return render_template("admin/login.html")
@@ -77,6 +80,8 @@ def login():
 @admin_bp.route("/logout", methods=["POST"])
 def logout():
     session.pop("admin", None)
+    session.pop("tenant_id", None)
+    session.pop("user_role", None)
     return redirect(url_for("admin.login"))
 
 @admin_bp.route("/")
@@ -138,6 +143,30 @@ def knowledge():
     return render_template("admin/knowledge.html",
                            urls=[dict(r) for r in urls],
                            docs=[dict(r) for r in docs])
+
+
+@admin_bp.route("/curator")
+@admin_required
+def curator():
+    tenant_id = session.get("tenant_id") or get_default_tenant_id()
+    state = get_curator_dashboard_state(tenant_id)
+    return render_template(
+        "admin/curator.html",
+        queue=state["queue"],
+        snapshots=state["snapshots"],
+    )
+
+
+@admin_bp.route("/curator/scan", methods=["POST"])
+@admin_required
+def curator_scan():
+    tenant_id = session.get("tenant_id") or get_default_tenant_id()
+    result = run_change_detection(tenant_id=tenant_id)
+    message = f"Curator scan complete: {result['changed']} changed source(s), {result['queued']} queued for review."
+    if result["errors"]:
+        message += f" {len(result['errors'])} scan error(s)."
+    flash(message, "success" if not result["errors"] else "error")
+    return redirect(url_for("admin.curator"))
 
 @admin_bp.route("/knowledge/url/add", methods=["POST"])
 @admin_required

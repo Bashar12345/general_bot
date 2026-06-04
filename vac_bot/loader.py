@@ -23,15 +23,27 @@ REQUEST_HEADERS = {
     "Accept-Language": "en-US,en;q=0.5",
 }
 
-def load_urls_from_db():
+
+def _tenant_headers(tenant_id):
+    if tenant_id is None:
+        return {}
+    return {"X-Tenant-Id": str(tenant_id)}
+
+def load_urls_from_db(tenant_id=None):
     conn = get_conn()
-    rows = conn.execute("SELECT id, url FROM urls").fetchall()
+    if tenant_id is None:
+        rows = conn.execute("SELECT id, url FROM urls").fetchall()
+    else:
+        rows = conn.execute("SELECT id, url FROM urls WHERE tenant_id=?", (tenant_id,)).fetchall()
     conn.close()
     return [{"id": r["id"], "url": r["url"]} for r in rows]
 
-def load_pdfs_from_db():
+def load_pdfs_from_db(tenant_id=None):
     conn = get_conn()
-    rows = conn.execute("SELECT id, filename, filepath FROM documents").fetchall()
+    if tenant_id is None:
+        rows = conn.execute("SELECT id, filename, filepath FROM documents").fetchall()
+    else:
+        rows = conn.execute("SELECT id, filename, filepath FROM documents WHERE tenant_id=?", (tenant_id,)).fetchall()
     conn.close()
     return [{"id": r["id"], "filename": r["filename"], "filepath": r["filepath"]} for r in rows]
 
@@ -86,33 +98,68 @@ def extract_pdf_text(filepath):
     from pypdf import PdfReader
     reader = PdfReader(filepath)
     pages = []
-    for page in reader.pages:
+    for page_number, page in enumerate(reader.pages, start=1):
         t = page.extract_text()
         if t:
-            pages.append(t)
-    return "\n".join(pages)
+            pages.append({"page_number": page_number, "text": t})
+    return pages
 
-def collect_documents():
+def chunk_source_text(text, base_metadata, splitter, indexed_at):
+    chunks = []
+    chunk_texts = splitter.split_text(text)
+    cursor = 0
+    overlap = getattr(splitter, "_chunk_overlap", 0) or 0
+
+    for chunk_index, chunk_text in enumerate(chunk_texts):
+        search_start = max(0, cursor - overlap)
+        start = text.find(chunk_text, search_start)
+        if start < 0:
+            start = search_start
+        end = min(len(text), start + len(chunk_text))
+        cursor = end
+
+        metadata = dict(base_metadata)
+        metadata.update({
+            "chunk_index": chunk_index,
+            "char_start": start,
+            "char_end": end,
+            "indexed_at": indexed_at,
+        })
+        chunks.append(Document(page_content=chunk_text, metadata=metadata))
+
+    return chunks
+
+def collect_documents(tenant_id=None):
     all_docs = []
     errors = []
     now = datetime.now(timezone.utc).isoformat()
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=1000,
+        chunk_overlap=200,
+    )
 
-    url_entries = load_urls_from_db()
+    url_entries = load_urls_from_db(tenant_id=tenant_id)
     for entry in url_entries:
         try:
             text, title = scrape_url(entry["url"])
             version = get_next_version("url", entry["url"])
             if text.strip():
-                all_docs.append(Document(
-                    page_content=text,
-                    metadata={
+                all_docs.extend(chunk_source_text(
+                    text,
+                    {
                         "source": entry["url"],
+                        "source_link": entry["url"],
+                        "source_file": entry["url"],
                         "source_type": "url",
                         "title": title or entry["url"],
+                        "section_heading": title or entry["url"],
+                        "page_number": None,
                         "timestamp": now,
                         "version": version,
                         "source_id": str(entry["id"]),
-                    }
+                    },
+                    splitter,
+                    now,
                 ))
                 print(f"Scraped URL: {entry['url']} ({len(text)} chars)")
             else:
@@ -124,24 +171,36 @@ def collect_documents():
             print(msg)
             errors.append(msg)
 
-    pdf_entries = load_pdfs_from_db()
+    pdf_entries = load_pdfs_from_db(tenant_id=tenant_id)
     for entry in pdf_entries:
         try:
-            text = extract_pdf_text(entry["filepath"])
             version = get_next_version("pdf", entry["id"])
-            if text.strip():
-                all_docs.append(Document(
-                    page_content=text,
-                    metadata={
+            pages = extract_pdf_text(entry["filepath"])
+            pdf_chunks = []
+            for page in pages:
+                page_text = page["text"]
+                if not page_text.strip():
+                    continue
+                pdf_chunks.extend(chunk_source_text(
+                    page_text,
+                    {
                         "source": f"pdf:{entry['filename']}",
+                        "source_link": entry["filepath"],
+                        "source_file": entry["filepath"],
                         "source_type": "pdf",
                         "title": entry["filename"],
+                        "section_heading": entry["filename"],
+                        "page_number": page["page_number"],
                         "timestamp": now,
                         "version": version,
                         "source_id": str(entry["id"]),
-                    }
+                    },
+                    splitter,
+                    now,
                 ))
-                print(f"Extracted PDF: {entry['filename']} ({len(text)} chars)")
+            if pdf_chunks:
+                all_docs.extend(pdf_chunks)
+                print(f"Extracted PDF: {entry['filename']} ({len(pdf_chunks)} chunks)")
             else:
                 msg = f"PDF ({entry['filename']}) extracted but empty"
                 print(msg)
@@ -152,45 +211,50 @@ def collect_documents():
             errors.append(msg)
 
     for i, faq in enumerate(STATIC_FAQ):
-        all_docs.append(Document(
-            page_content=f"Q: {faq['question']}\nA: {faq['answer']}",
-            metadata={
+        text = f"Q: {faq['question']}\nA: {faq['answer']}"
+        all_docs.extend(chunk_source_text(
+            text,
+            {
                 "source": "static",
+                "source_link": "static_faq",
+                "source_file": "static_faq",
                 "source_type": "static",
                 "title": faq["question"][:80],
+                "section_heading": faq["question"][:80],
+                "page_number": None,
                 "timestamp": now,
                 "version": 1,
                 "source_id": f"static_{i}",
-            }
+            },
+            splitter,
+            now,
         ))
 
     if not all_docs:
         for i, faq in enumerate(STATIC_FAQ):
-            all_docs.append(Document(
-                page_content=f"Q: {faq['question']}\nA: {faq['answer']}",
-                metadata={
+            text = f"Q: {faq['question']}\nA: {faq['answer']}"
+            all_docs.extend(chunk_source_text(
+                text,
+                {
                     "source": "static",
+                    "source_link": "static_faq",
+                    "source_file": "static_faq",
                     "source_type": "static",
                     "title": faq["question"][:80],
+                    "section_heading": faq["question"][:80],
+                    "page_number": None,
                     "timestamp": now,
                     "version": 1,
                     "source_id": f"static_{i}",
-                }
+                },
+                splitter,
+                now,
             ))
 
-    splitter = RecursiveCharacterTextSplitter(
-        chunk_size=1000,
-        chunk_overlap=200,
-    )
-    chunks = splitter.split_documents(all_docs)
+    return all_docs, errors
 
-    for i, chunk in enumerate(chunks):
-        chunk.metadata["chunk_index"] = i
-
-    return chunks, all_docs, errors
-
-def rebuild_vectordb():
-    chunks, raw, errors = collect_documents()
+def rebuild_vectordb(tenant_id=None):
+    chunks, errors = collect_documents(tenant_id=tenant_id)
     payload = {
         "documents": [
             {"page_content": d.page_content, "metadata": d.metadata}
@@ -198,18 +262,26 @@ def rebuild_vectordb():
         ]
     }
     print(f"Sending {len(chunks)} chunks to vectordb...")
-    resp = requests.post(f"{VEKTORDB_URL}/rebuild", json=payload, timeout=300)
+    resp = requests.post(
+        f"{VEKTORDB_URL}/rebuild",
+        json=payload,
+        headers=_tenant_headers(tenant_id),
+        timeout=300,
+    )
     resp.raise_for_status()
     result = resp.json()
     result["warnings"] = errors
 
-    from db import mark_indexed
-    url_ids = list(set(d.metadata.get("source_id") for d in raw if d.metadata.get("source_type") == "url" and d.metadata.get("source_id")))
-    pdf_ids = list(set(int(d.metadata["source_id"]) for d in raw if d.metadata.get("source_type") == "pdf" and d.metadata.get("source_id")))
-    if url_ids:
-        mark_indexed("url", url_ids)
-    if pdf_ids:
-        mark_indexed("pdf", pdf_ids)
+    try:
+        from db import mark_indexed
+        url_ids = sorted({d.metadata.get("source_id") for d in chunks if d.metadata.get("source_type") == "url" and d.metadata.get("source_id")})
+        pdf_ids = sorted({int(d.metadata.get("source_id")) for d in chunks if d.metadata.get("source_type") == "pdf" and d.metadata.get("source_id")})
+        if url_ids:
+            mark_indexed("url", url_ids)
+        if pdf_ids:
+            mark_indexed("pdf", pdf_ids)
+    except Exception:
+        pass
 
     print(f"Vectordb rebuilt: {result}")
     return result
@@ -217,12 +289,14 @@ def rebuild_vectordb():
 class VectordbRetriever(BaseRetriever):
     k: int = 5
     max_distance: float = 0.75
+    tenant_id: str | int | None = None
 
     def _get_relevant_documents(self, query: str):
         try:
             resp = requests.post(
                 f"{VEKTORDB_URL}/search",
                 json={"query": query, "k": self.k},
+                headers=_tenant_headers(self.tenant_id),
                 timeout=15
             )
             resp.raise_for_status()
@@ -232,7 +306,14 @@ class VectordbRetriever(BaseRetriever):
                 score = d.get("score")
                 if score is not None and score > self.max_distance:
                     continue
-                docs.append(Document(page_content=d["page_content"], metadata=d.get("metadata", {})))
+                metadata = dict(d.get("metadata", {}))
+                metadata["retrieval_score"] = score
+                if isinstance(score, (int, float)):
+                    metadata["distance"] = float(score)
+                    metadata["similarity_score"] = max(0.0, 1.0 - float(score))
+                docs.append(Document(page_content=d["page_content"], metadata=metadata))
+            for citation_id, doc in enumerate(docs, start=1):
+                doc.metadata["citation_id"] = citation_id
             if not docs:
                 print(f"Vectordb returned no confident matches for: {query}")
             return docs

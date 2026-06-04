@@ -1,0 +1,73 @@
+{% extends "admin/base.html" %}
+{% block title %}Curator Queue{% endblock %}
+{% block content %}
+<h1>Curator Queue</h1>
+
+<div class="card">
+  <h3>Run Change Detection</h3>
+  <p style="font-size:14px;color:#8aaac8;margin-bottom:12px;">
+    Scan tracked URLs and uploaded PDFs for content changes. Changed sources are written to the review queue and can be re-indexed manually.
+  </p>
+  <form method="POST" action="{{ url_for('admin.curator_scan') }}">
+    <button class="btn btn-primary">Scan Now</button>
+  </form>
+</div>
+
+<div class="stat-grid">
+  <div class="stat">
+    <div class="num">{{ queue|length }}</div>
+    <div class="label">Queued Items</div>
+  </div>
+  <div class="stat">
+    <div class="num">{{ snapshots|length }}</div>
+    <div class="label">Recent Snapshots</div>
+  </div>
+</div>
+
+<div class="card">
+  <h3>Review Queue</h3>
+  {% if queue %}
+  <table>
+    <thead>
+      <tr><th>Job</th><th>Source</th><th>Status</th><th>Priority</th><th>Created</th></tr>
+    </thead>
+    <tbody>
+      {% for item in queue %}
+      <tr>
+        <td>{{ item.title }}</td>
+        <td>{{ item.source_type }}{% if item.source_id %} #{{ item.source_id }}{% endif %}</td>
+        <td>{{ item.status }}</td>
+        <td>{{ item.priority }}</td>
+        <td style="white-space:nowrap;">{{ (item.created_at or "")[:19] }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">No curator work items yet. Run a scan to detect changes.</p>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h3>Recent Snapshots</h3>
+  {% if snapshots %}
+  <table>
+    <thead>
+      <tr><th>Source</th><th>Hash</th><th>Changed</th><th>Checked</th></tr>
+    </thead>
+    <tbody>
+      {% for item in snapshots %}
+      <tr>
+        <td>{{ item.source_type }}{% if item.source_id %} #{{ item.source_id }}{% endif %}</td>
+        <td style="font-family:monospace;font-size:12px;">{{ item.content_hash or "-" }}</td>
+        <td>{{ "Yes" if item.changed else "No" }}</td>
+        <td style="white-space:nowrap;">{{ (item.checked_at or "")[:19] }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">No source snapshots recorded yet.</p>
+  {% endif %}
+</div>
+{% endblock %}

@@ -127,6 +127,7 @@
     <a href="{{ url_for('admin.dashboard') }}" class="{% if request.endpoint == 'admin.dashboard' %}active{% endif %}">Dashboard</a>
     <a href="{{ url_for('admin.settings') }}" class="{% if request.endpoint == 'admin.settings' %}active{% endif %}">Bot Settings</a>
     <a href="{{ url_for('admin.knowledge') }}" class="{% if request.endpoint == 'admin.knowledge' %}active{% endif %}">Knowledge Base</a>
+    <a href="{{ url_for('admin.curator') }}" class="{% if request.endpoint == 'admin.curator' %}active{% endif %}">Curator Queue</a>
     <form class="logout-form" method="POST" action="{{ url_for('admin.logout') }}">
       <button type="submit" class="logout">Logout</button>
     </form>

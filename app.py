@@ -1,10 +1,10 @@
 import os
 import asyncio
 import concurrent.futures
-from flask import Flask, render_template, request, jsonify, session
+from flask import Flask, render_template, request, jsonify, session, g
 
 from admin import admin_bp
-from db import init_db, get_settings
+from db import init_db, get_settings, get_default_tenant_id
 
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "valr-bot-dev-key-change-in-prod")
@@ -17,6 +17,14 @@ app.register_blueprint(admin_bp)
 
 from vac_bot.chain import ask
 
+
+@app.before_request
+def set_tenant_context():
+    tenant_id = session.get("tenant_id")
+    if tenant_id is None:
+        tenant_id = get_default_tenant_id()
+    g.tenant_id = tenant_id
+
 def _run_async(coro):
     try:
         asyncio.get_running_loop()
@@ -27,7 +35,7 @@ def _run_async(coro):
 
 @app.route("/")
 def index():
-    settings = get_settings()
+    settings = get_settings(g.tenant_id)
     bot_name = settings.get("bot_name", "Betopia AI")
     theme = (settings.get("theme") or "dark").strip().lower()
     if theme not in {"dark", "light"}:
@@ -51,7 +59,7 @@ def ask_question():
         sid = request.remote_addr or "default"
         session["session_id"] = sid
 
-    result = _run_async(ask(q, sid))
+    result = _run_async(ask(q, sid, tenant_id=g.tenant_id))
     return jsonify(result)
 
 @app.route("/health")
