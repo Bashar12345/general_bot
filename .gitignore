@@ -140,4 +140,17 @@ Thumbs.db
 ehthumbs.db
 Desktop.ini
 
+# Celery beat schedule
+celerybeat-schedule
+
+# Runtime / generated
+last_refresh.txt
+
+# Stale vector store artifacts
+faiss/
+chroma/
+
+# Uploaded files (runtime data)
+uploads/
+
 # End of file

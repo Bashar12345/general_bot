@@ -105,59 +105,6 @@
   </div>
 </div>
 
-<style>
-.modal-overlay {
-  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-  background: rgba(0,0,0,0.6); z-index: 1000;
-  display: flex; align-items: center; justify-content: center;
-}
-.modal-box {
-  background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
-  padding: 24px; max-width: 440px; width: 90%;
-}
-</style>
-
-<script>
-let pendingAction = null;
-
-function confirmDelete(actionUrl, type) {
-  const labels = {url: 'URL', pdf: 'PDF', doc: 'document'};
-  document.getElementById('deleteModalTitle').textContent =
-    'Remove this ' + (labels[type] || 'item') + ' from the index?';
-  pendingAction = actionUrl;
-  document.getElementById('deleteModal').style.display = 'flex';
-}
-
-function closeModal() {
-  document.getElementById('deleteModal').style.display = 'none';
-  pendingAction = null;
-}
-
-document.getElementById('deleteOnlyBtn').addEventListener('click', function () {
-  if (!pendingAction) return;
-  var form = document.createElement('form');
-  form.method = 'POST';
-  form.action = pendingAction;
-  document.body.appendChild(form);
-  form.submit();
-});
-
-document.getElementById('deleteAndRebuildBtn').addEventListener('click', function () {
-  if (!pendingAction) return;
-  var form = document.createElement('form');
-  form.method = 'POST';
-  form.action = pendingAction;
-  var input = document.createElement('input');
-  input.type = 'hidden';
-  input.name = 'rebuild';
-  input.value = '1';
-  form.appendChild(input);
-  document.body.appendChild(form);
-  form.submit();
-});
-
-document.getElementById('deleteModal').addEventListener('click', function (e) {
-  if (e.target === this) closeModal();
-});
-</script>
+<link rel="stylesheet" href="{{ url_for('static', filename='admin_knowledge.css') }}">
+<script src="{{ url_for('static', filename='admin_knowledge.js') }}"></script>
 {% endblock %}

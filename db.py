@@ -178,12 +178,12 @@ def init_db():
             (
                 1,
                 1,
-                "Betopia AI",
+                "b2b bots",
                 "dark",
-                "a knowledgeable, professional AI assistant from Betopia Limited",
-                "professional and helpful. Be concise, clear, and friendly. Use 'we' for Betopia. End with next steps or an offer to help further.",
-                "Betopia Limited is a global enterprise technology company delivering AI-powered cloud, ERP, cybersecurity, and digital transformation solutions.",
-                'If the provided context does not contain relevant information to answer the question, do not make up an answer. Say:\n"I\'m not sure about that one — that\'s not covered in our current knowledge base. Reach out at betopialimited.com/contact and we\'ll get you the right answer."'
+                "a knowledgeable, professional AI assistant for your business",
+                "professional and helpful. Be concise, clear, and friendly. End with next steps or an offer to help further.",
+                "b2b bots is a platform that lets businesses create, train, and publish their own AI chatbot using their documents and knowledge base.",
+                'If the provided context does not contain relevant information to answer the question, do not make up an answer. Say:\n"I\'m not sure about that one — that\'s not covered in our current knowledge base."'
             )
         )
     else:

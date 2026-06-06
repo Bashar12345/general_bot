@@ -1,15 +1,15 @@
 import os
 import asyncio
 import concurrent.futures
+from datetime import datetime, timezone
 from flask import Flask, render_template, request, jsonify, session, g, redirect, url_for, flash
-from werkzeug.security import check_password_hash
 
 from admin import admin_bp
 from db import init_db, get_settings, get_default_tenant_id, get_conn
+from services.auth_service import AuthService
 
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "valr-bot-dev-key-change-in-prod")
-
 
 with app.app_context():
     init_db()
@@ -17,6 +17,8 @@ with app.app_context():
 app.register_blueprint(admin_bp)
 
 from vac_bot.chain import ask
+
+auth_service = AuthService()
 
 
 @app.before_request
@@ -26,6 +28,7 @@ def set_tenant_context():
         tenant_id = get_default_tenant_id()
     g.tenant_id = tenant_id
 
+
 def _run_async(coro):
     try:
         asyncio.get_running_loop()
@@ -34,34 +37,37 @@ def _run_async(coro):
     except RuntimeError:
         return asyncio.run(coro)
 
+
 @app.route("/")
 def index():
-    if not session.get("user_id"):
-        return redirect(url_for("user_login"))
     settings = get_settings(g.tenant_id)
-    bot_name = settings.get("bot_name", "Betopia AI")
-    theme = (settings.get("theme") or "dark").strip().lower()
-    if theme not in {"dark", "light"}:
-        theme = "dark"
+    bot_name = settings.get("bot_name", "b2b bots")
+    if auth_service.is_logged_in():
+        theme = (settings.get("theme") or "dark").strip().lower()
+        if theme not in {"dark", "light"}:
+            theme = "dark"
+        return render_template(
+            "vac_chat.html",
+            bot_name=bot_name,
+            bot_tagline=f"Intelligent Enterprise Assistant — {bot_name}",
+            theme=theme,
+        )
     return render_template(
-        "vac_chat.html",
-        bot_name=bot_name,
-        bot_tagline=f"Intelligent Enterprise Assistant — {bot_name}",
-        theme=theme,
+        "landing.html",
+        now=datetime.now(timezone.utc),
     )
+
 
 @app.route("/ask", methods=["POST"])
 def ask_question():
     q = request.json.get("question", "").strip()
     if not q:
         return jsonify({"error": "Question is required"}), 400
-
     session.permanent = True
     sid = session.get("session_id")
     if not sid:
         sid = request.remote_addr or "default"
         session["session_id"] = sid
-
     result = _run_async(ask(q, sid, tenant_id=g.tenant_id))
     return jsonify(result)
 
@@ -74,37 +80,38 @@ def user_login():
         if not username or not password:
             flash('Username and password required', 'error')
             return redirect(url_for('user_login'))
-        conn = None
-        try:
-            from db import get_conn
-            conn = get_conn()
-            row = conn.execute('SELECT id, tenant_id, password_hash, role FROM users WHERE username=?', (username,)).fetchone()
-            if row and check_password_hash(row['password_hash'], password):
-                session['user_id'] = row['id']
-                session['tenant_id'] = row['tenant_id']
-                session['username'] = username
-                session['user_role'] = row['role']
-                flash('Logged in', 'success')
-                return redirect(url_for('index'))
-            flash('Invalid credentials', 'error')
-        finally:
-            if conn:
-                conn.close()
+        result = auth_service.login_user(username, password)
+        if result.success:
+            flash('Logged in', 'success')
+            return redirect(url_for('index'))
+        flash('Invalid credentials', 'error')
     return render_template('user/login.html')
+
+
+@app.route('/signup', methods=['GET', 'POST'])
+def signup():
+    if request.method == 'POST':
+        business = (request.form.get('business_name') or '').strip()
+        email = (request.form.get('email') or '').strip().lower()
+        password = (request.form.get('password') or '').strip()
+        result = auth_service.signup(business, email, password)
+        if result.success:
+            flash('Account created! Welcome to b2b bots.', 'success')
+            return redirect(url_for('index'))
+        flash(result.error, 'error')
+        return redirect(url_for('signup'))
+    return render_template('user/signup.html')
 
 
 @app.route('/logout', methods=['POST'])
 def user_logout():
-    session.pop('user_id', None)
-    session.pop('username', None)
-    session.pop('tenant_id', None)
-    session.pop('user_role', None)
+    auth_service.logout_user()
     return redirect(url_for('user_login'))
 
 
 @app.route('/change_password', methods=['GET', 'POST'])
 def change_password():
-    if not session.get('user_id'):
+    if not auth_service.is_logged_in():
         flash('Login required', 'error')
         return redirect(url_for('user_login'))
     if request.method == 'POST':
@@ -113,23 +120,17 @@ def change_password():
         if not current or not newpw:
             flash('Both current and new password are required', 'error')
             return redirect(url_for('change_password'))
-        conn = get_conn()
-        row = conn.execute('SELECT password_hash FROM users WHERE id=?', (session['user_id'],)).fetchone()
-        if not row or not check_password_hash(row['password_hash'], current):
-            conn.close()
-            flash('Current password is incorrect', 'error')
-            return redirect(url_for('change_password'))
-        from werkzeug.security import generate_password_hash
-        conn.execute('UPDATE users SET password_hash=? WHERE id=?', (generate_password_hash(newpw), session['user_id']))
-        conn.commit()
-        conn.close()
-        flash('Password updated', 'success')
-        return redirect(url_for('index'))
+        ok, msg = auth_service.change_password(session['user_id'], current, newpw)
+        flash(msg, 'success' if ok else 'error')
+        if ok:
+            return redirect(url_for('index'))
     return render_template('user/change_password.html')
+
 
 @app.route("/health")
 def health():
     return jsonify({"status": "ok"})
+
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))

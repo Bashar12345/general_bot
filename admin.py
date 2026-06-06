@@ -11,15 +11,15 @@ from db import get_conn, get_settings as load_settings, get_default_tenant_id
 from db import get_tenant
 from vac_bot.curator import get_curator_dashboard_state, run_change_detection
 from werkzeug.security import generate_password_hash
+from services.auth_service import AuthService
 import requests
 import re
 import time
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
+auth_service = AuthService()
 
-ADMIN_USER = os.getenv("ADMIN_USERNAME", "admin")
-ADMIN_PASS = os.getenv("ADMIN_PASSWORD", "admin123")
-DEFAULT_BOT_NAME = "Betopia AI"
+DEFAULT_BOT_NAME = "B2b BOTS"
 DEFAULT_THEME = "dark"
 
 THEME_OPTIONS = [
@@ -85,19 +85,17 @@ def inject_admin_brand_name():
 @admin_bp.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        if request.form.get("username") == ADMIN_USER and request.form.get("password") == ADMIN_PASS:
-            session["admin"] = True
-            session["tenant_id"] = get_default_tenant_id()
-            session["user_role"] = "admin"
+        username = (request.form.get("username") or "").strip()
+        password = (request.form.get("password") or "").strip()
+        result = auth_service.login_admin(username, password)
+        if result.success:
             return redirect(url_for("admin.dashboard"))
         flash("Invalid credentials", "error")
     return render_template("admin/login.html")
 
 @admin_bp.route("/logout", methods=["POST"])
 def logout():
-    session.pop("admin", None)
-    session.pop("tenant_id", None)
-    session.pop("user_role", None)
+    auth_service.logout_admin()
     return redirect(url_for("admin.login"))
 
 @admin_bp.route("/")
