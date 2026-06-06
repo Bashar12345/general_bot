@@ -23,6 +23,7 @@ def migrate_db():
         "ALTER TABLE settings ADD COLUMN tenant_id INTEGER DEFAULT 1",
         "ALTER TABLE settings ADD COLUMN bot_avatar TEXT DEFAULT ''",
         "ALTER TABLE settings ADD COLUMN theme TEXT DEFAULT 'dark'",
+        "ALTER TABLE settings ADD COLUMN language TEXT DEFAULT 'en'",
         "ALTER TABLE urls ADD COLUMN tenant_id INTEGER DEFAULT 1",
         "ALTER TABLE urls ADD COLUMN last_indexed_at TIMESTAMP",
         "ALTER TABLE urls ADD COLUMN version INTEGER DEFAULT 0",
@@ -89,6 +90,7 @@ def init_db():
             tenant_id INTEGER DEFAULT 1,
             bot_name TEXT NOT NULL DEFAULT 'Betopia AI',
             theme TEXT DEFAULT 'dark',
+            language TEXT DEFAULT 'en',
             personality TEXT DEFAULT '',
             tone TEXT DEFAULT '',
             purpose TEXT DEFAULT '',
@@ -174,12 +176,13 @@ def init_db():
     row = conn.execute("SELECT COUNT(*) FROM settings").fetchone()
     if row[0] == 0:
         conn.execute(
-            "INSERT INTO settings (id, tenant_id, bot_name, theme, personality, tone, purpose, instructions) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO settings (id, tenant_id, bot_name, theme, language, personality, tone, purpose, instructions) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 1,
                 1,
                 "b2b bots",
                 "dark",
+                "en",
                 "a knowledgeable, professional AI assistant for your business",
                 "professional and helpful. Be concise, clear, and friendly. End with next steps or an offer to help further.",
                 "b2b bots is a platform that lets businesses create, train, and publish their own AI chatbot using their documents and knowledge base.",

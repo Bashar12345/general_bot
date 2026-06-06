@@ -1,74 +1,101 @@
 {% extends "admin/base.html" %}
 {% block title %}Bot Settings{% endblock %}
 {% block content %}
-<h1>Bot Settings</h1>
+<div class="main-header">
+  <div>
+    <h1>Bot Settings</h1>
+    <div class="sub">Configure your AI assistant's identity and behavior</div>
+  </div>
+</div>
 
 <div class="card">
-  <form method="POST" enctype="multipart/form-data" style="display:flex;flex-direction:column;gap:16px;">
-    <div style="display:flex;align-items:center;gap:16px;">
-      {% if bot_avatar_url %}
-      <img src="{{ bot_avatar_url }}" alt="Avatar" style="width:56px;height:56px;border-radius:50%;object-fit:cover;border:2px solid var(--border);flex-shrink:0;">
-      {% else %}
-      <div style="width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent-hover));display:flex;align-items:center;justify-content:center;color:var(--button-text);font-weight:700;font-size:22px;flex-shrink:0;">{{ (settings.bot_name or admin_brand_name)[0] }}</div>
-      {% endif %}
-      <div style="flex:1;">
-        <label style="margin-bottom:4px;">Bot Avatar</label>
-        <input type="file" name="bot_avatar" accept="image/png,image/jpeg,image/gif,image/webp">
+  <form method="POST" enctype="multipart/form-data">
+    <div class="form-row" style="align-items:flex-start;">
+      <label>Bot Avatar</label>
+      <div class="field" style="display:flex;align-items:center;gap:14px;">
+        {% if bot_avatar_url %}
+        <img src="{{ bot_avatar_url }}" alt="Avatar" style="width:52px;height:52px;border-radius:12px;object-fit:cover;border:2px solid var(--border);flex-shrink:0;">
+        {% else %}
+        <div style="width:52px;height:52px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent-hover));display:flex;align-items:center;justify-content:center;color:var(--button-text);font-weight:700;font-size:20px;flex-shrink:0;">{{ (settings.bot_name or admin_brand_name)[0] }}</div>
+        {% endif %}
+        <input type="file" name="bot_avatar" accept="image/png,image/jpeg,image/gif,image/webp" style="flex:1;">
       </div>
     </div>
-    <div style="display:flex;align-items:center;gap:16px;">
-      <label style="width:140px;flex-shrink:0;margin:0;">Bot Name</label>
-      <input type="text" name="bot_name" value="{{ settings.bot_name }}" placeholder="{{ admin_brand_name }}" style="flex:1;">
+    <div class="form-row">
+      <label>Bot Name</label>
+      <div class="field">
+        <input type="text" name="bot_name" value="{{ settings.bot_name }}" placeholder="{{ admin_brand_name }}">
+      </div>
     </div>
-    <div style="display:flex;align-items:center;gap:16px;">
-      <label style="width:140px;flex-shrink:0;margin:0;">Theme</label>
-      <select name="theme" style="flex:1;">
-        {% for option in theme_options %}
-          <option value="{{ option }}" {% if settings.theme == option %}selected{% endif %}>{{ option|title }} Mode</option>
-        {% endfor %}
-      </select>
+    <div class="form-row">
+      <label>Theme</label>
+      <div class="field">
+        <select name="theme">
+          {% for option in theme_options %}
+            <option value="{{ option }}" {% if settings.theme == option %}selected{% endif %}>{{ option|title }} Mode</option>
+          {% endfor %}
+        </select>
+      </div>
     </div>
-    <div style="display:flex;align-items:center;gap:16px;">
-      <label style="width:140px;flex-shrink:0;margin:0;">Personality</label>
-      <select name="personality" style="flex:1;">
-        <option value="">Choose a personality</option>
-        {% if settings.personality and settings.personality not in personality_options %}
-          <option value="{{ settings.personality }}" selected>{{ settings.personality }} (current custom)</option>
-        {% endif %}
-        {% for option in personality_options %}
-          <option value="{{ option }}" {% if settings.personality == option %}selected{% endif %}>{{ option }}</option>
-        {% endfor %}
-      </select>
+    <div class="form-row">
+      <label>Language</label>
+      <div class="field">
+        <select name="language">
+          {% for code, label in language_options.items() %}
+            <option value="{{ code }}" {% if (settings.language or 'en') == code %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
     </div>
-    <div style="display:flex;align-items:center;gap:16px;">
-      <label style="width:140px;flex-shrink:0;margin:0;">Tone</label>
-      <select name="tone" style="flex:1;">
-        <option value="">Choose a tone</option>
-        {% if settings.tone and settings.tone not in tone_options %}
-          <option value="{{ settings.tone }}" selected>{{ settings.tone }} (current custom)</option>
-        {% endif %}
-        {% for option in tone_options %}
-          <option value="{{ option }}" {% if settings.tone == option %}selected{% endif %}>{{ option }}</option>
-        {% endfor %}
-      </select>
+    <div class="form-row">
+      <label>Personality</label>
+      <div class="field">
+        <select name="personality">
+          <option value="">Choose a personality</option>
+          {% if settings.personality and settings.personality not in personality_options %}
+            <option value="{{ settings.personality }}" selected>{{ settings.personality }} (current custom)</option>
+          {% endif %}
+          {% for option in personality_options %}
+            <option value="{{ option }}" {% if settings.personality == option %}selected{% endif %}>{{ option }}</option>
+          {% endfor %}
+        </select>
+      </div>
     </div>
-    <div style="display:flex;align-items:center;gap:16px;">
-      <label style="width:140px;flex-shrink:0;margin:0;">Purpose</label>
-      <select name="purpose" style="flex:1;">
-        <option value="">Choose a purpose</option>
-        {% if settings.purpose and settings.purpose not in purpose_options %}
-          <option value="{{ settings.purpose }}" selected>{{ settings.purpose }} (current custom)</option>
-        {% endif %}
-        {% for option in purpose_options %}
-          <option value="{{ option }}" {% if settings.purpose == option %}selected{% endif %}>{{ option }}</option>
-        {% endfor %}
-      </select>
+    <div class="form-row">
+      <label>Tone</label>
+      <div class="field">
+        <select name="tone">
+          <option value="">Choose a tone</option>
+          {% if settings.tone and settings.tone not in tone_options %}
+            <option value="{{ settings.tone }}" selected>{{ settings.tone }} (current custom)</option>
+          {% endif %}
+          {% for option in tone_options %}
+            <option value="{{ option }}" {% if settings.tone == option %}selected{% endif %}>{{ option }}</option>
+          {% endfor %}
+        </select>
+      </div>
     </div>
-    <div style="display:flex;align-items:flex-start;gap:16px;">
-      <label style="width:140px;flex-shrink:0;margin:0;padding-top:10px;">Instructions</label>
-      <textarea name="instructions" rows="4" placeholder="What to say when the bot doesn't know the answer." style="flex:1;">{{ settings.instructions }}</textarea>
+    <div class="form-row">
+      <label>Purpose</label>
+      <div class="field">
+        <select name="purpose">
+          <option value="">Choose a purpose</option>
+          {% if settings.purpose and settings.purpose not in purpose_options %}
+            <option value="{{ settings.purpose }}" selected>{{ settings.purpose }} (current custom)</option>
+          {% endif %}
+          {% for option in purpose_options %}
+            <option value="{{ option }}" {% if settings.purpose == option %}selected{% endif %}>{{ option }}</option>
+          {% endfor %}
+        </select>
+      </div>
     </div>
-    <div style="display:flex;justify-content:flex-end;">
+    <div class="form-row" style="align-items:flex-start;">
+      <label style="padding-top:10px;">Instructions</label>
+      <div class="field">
+        <textarea name="instructions" rows="4" placeholder="What to say when the bot doesn't know the answer.">{{ settings.instructions }}</textarea>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;padding-top:8px;">
       <button class="btn btn-primary">Save Settings</button>
     </div>
   </form>

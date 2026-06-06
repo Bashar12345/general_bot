@@ -24,10 +24,14 @@
             <option value="viewer" {% if u.role == 'viewer' %}selected{% endif %}>Viewer</option>
             <option value="admin" {% if u.role == 'admin' %}selected{% endif %}>Admin</option>
           </select>
-          <button class="btn btn-sm" type="submit">Save</button>
+          <button class="icon-btn" title="Save role">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </button>
         </form>
         <form method="POST" action="{{ url_for('admin.delete_user', user_id=u.id) }}" style="display:inline;" onsubmit="return confirm('Delete user {{ u.username }}?');">
-          <button class="btn btn-sm btn-danger" type="submit">Delete</button>
+          <button class="icon-btn danger" title="Delete user">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          </button>
         </form>
       </div>
     {% else %}
@@ -54,7 +58,7 @@
             </select>
           </div>
           <div class="form-group invite-submit">
-            <button class="btn btn-primary" type="submit">Invite</button>
+            <button class="btn btn-primary" type="submit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg> Invite</button>
           </div>
         </div>
       </form>

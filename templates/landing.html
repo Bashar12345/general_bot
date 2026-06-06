@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>B2b BOTS — AI Chatbot Platform for Your Business</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='landing_page.css') }}">
+</head>
+<body>
+
+  <div class="container">
+    <nav>
+      <div class="logo">
+        <div class="mark">B2</div>
+        B2b BOTS
+      </div>
+      <button class="mobile-menu-btn" onclick="document.querySelector('.nav-links').classList.toggle('open')">☰</button>
+      <div class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#pricing">Pricing</a>
+        <a href="#how-it-works">How it works</a>
+                    <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">☀️</button>
+        {% if is_logged_in %}
+        <a href="{{ url_for('index') }}" class="btn btn-primary">Open dashboard</a>
+        {% else %}
+        <a href="{{ url_for('user_login') }}" class="btn btn-outline">Log in</a>
+        <a href="{{ url_for('signup') }}" class="btn btn-primary">Get started</a>
+        {% endif %}
+  
+      </div>
+
+    </nav>
+  </div>
+
+  <section class="hero">
+    <div class="container">
+      <div class="hero-badge">✦ Create your own AI chatbot in minutes</div>
+      <h1>
+        Turn your business<br>
+        knowledge into a <span>smart chatbot</span>
+      </h1>
+      <p>
+        B2b BOTS lets you create, train, and publish an AI chatbot for your business.
+        Upload documents, add URLs, and get a ready-to-use intelligent assistant — no coding required.
+      </p>
+      <div class="hero-actions">
+        {% if is_logged_in %}
+        <a href="{{ url_for('index') }}" class="btn btn-primary btn-hero">
+          Open your chatbot →
+        </a>
+        {% else %}
+        <a href="{{ url_for('signup') }}" class="btn btn-primary btn-hero">
+          Create your chatbot →
+        </a>
+        {% endif %}
+        <a href="#pricing" class="btn btn-outline btn-hero">See plans</a>
+      </div>
+      <div class="hero-steps">
+        <div class="hero-step">
+          <div class="hero-step-wrap">
+            <div class="circle">1</div>
+            <div class="label">Upload sources</div>
+          </div>
+          <div class="connector"></div>
+        </div>
+        <div class="hero-step">
+          <div class="hero-step-wrap">
+            <div class="circle">2</div>
+            <div class="label">AI trains</div>
+          </div>
+          <div class="connector"></div>
+        </div>
+        <div class="hero-step">
+          <div class="hero-step-wrap">
+            <div class="circle">3</div>
+            <div class="label">Publish &amp; share</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="hero-visual">
+        <div class="mockup">
+          <div class="mockup-header">
+            <div class="dots"><span></span><span></span><span></span></div>
+            <div class="mockup-title">Acme Corp Bot</div>
+          </div>
+          <div class="mockup-body">
+            <div class="mockup-msg bot">Hi! I'm the assistant for Acme Corp. How can I help you today?</div>
+            <div class="mockup-msg user">What products do you offer?</div>
+            <div class="mockup-typing"><span></span><span></span><span></span></div>
+            <div class="mockup-input-row">
+              <div class="bar"></div>
+              <div class="send-btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="features">
+    <div class="container centered">
+      <div class="section-label">Platform features</div>
+      <h2 class="section-title">Build a chatbot tailored to your business</h2>
+      <p class="section-sub">Feed it your documents, URLs, and data — get an AI Tool that knows your business inside out.</p>
+    </div>
+    <div class="container">
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="icon">📄</div>
+          <h3>Train on your content</h3>
+          <p>Upload PDFs, Word, Excel, PowerPoint, and images. Point to website URLs. Your chatbot learns everything instantly.</p>
+        </div>
+        <div class="feature-card">
+          <div class="icon">🧠</div>
+          <h3>Smart RAG engine</h3>
+          <p>Powered by Advanced AI search. Every answer is grounded in your actual data, not generic AI guesses.</p>
+        </div>
+        <div class="feature-card">
+          <div class="icon">🎨</div>
+          <h3>Custom branding</h3>
+          <p>Set your bot's name, personality, tone, and avatar. Make it feel like a natural extension of your brand.</p>
+        </div>
+        <div class="feature-card">
+          <div class="icon">🖼️</div>
+          <h3>Reads images &amp; tables</h3>
+          <p>Scanned PDFs, slides, charts, and tables — our multimodal AI extracts text and data using vision capabilities.</p>
+        </div>
+        <div class="feature-card">
+          <div class="icon">🔄</div>
+          <h3>Auto-sync knowledge</h3>
+          <p>Curator watches your sources for changes and re-indexes automatically. Your bot stays up to date without manual work.</p>
+        </div>
+        <div class="feature-card">
+          <div class="icon">📊</div>
+          <h3>Usage metering</h3>
+          <p>Every query and index operation is metered per tenant. Integrates directly with your billing system for accurate invoicing.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="how-it-works" style="background: var(--surface);">
+    <div class="container centered">
+      <div class="section-label">How it works</div>
+      <h2 class="section-title">From zero to published chatbot in 3 steps</h2>
+      <p class="section-sub">No developers, no deployments, no hassle.</p>
+    </div>
+    <div class="container">
+      <div class="steps">
+        <div class="step">
+          <div class="num">1</div>
+          <h3>Create your tenant</h3>
+          <p>Sign up and get your own isolated workspace. Configure your bot name, personality, and access settings.</p>
+        </div>
+        <div class="step">
+          <div class="num">2</div>
+          <h3>Feed it knowledge</h3>
+          <p>Upload documents or add website URLs. The AI chunks, embeds, and indexes everything into a searchable vector database.</p>
+        </div>
+        <div class="step">
+          <div class="num">3</div>
+          <h3>Publish &amp; share</h3>
+          <p>Share with your team or customers. Your bot answers questions 24/7 based on your data.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="pricing">
+    <div class="container centered">
+      <div class="section-label">Pricing</div>
+      <h2 class="section-title">Simple, transparent plans</h2>
+      <p class="section-sub">Start small, scale as you grow. Every plan includes usage metering that feeds into your billing system.</p>
+    </div>
+    <div class="container">
+      <div class="pricing-grid">
+        <div class="plan">
+          <div class="plan-name">Starter</div>
+          <div class="plan-price">$29 <span>/mo</span></div>
+          <div class="plan-desc">For individuals and small teams getting started.</div>
+          <ul>
+            <li>1 admin account</li>
+            <li>500 queries / month</li>
+            <li>Up to 10 documents</li>
+            <li>Standard AI model</li>
+            <li>Email support</li>
+          </ul>
+          {% if is_logged_in %}
+          <a href="{{ url_for('index') }}" class="btn btn-primary">Open dashboard</a>
+          {% else %}
+          <a href="{{ url_for('signup') }}" class="btn btn-primary">Get started</a>
+          {% endif %}
+        </div>
+
+        <div class="plan featured">
+          <div class="plan-name">Pro</div>
+          <div class="plan-price">$99 <span>/mo</span></div>
+          <div class="plan-desc">For growing businesses that need more power.</div>
+          <ul>
+            <li>5 admin accounts</li>
+            <li>5,000 queries / month</li>
+            <li>Unlimited documents</li>
+            <li>Confidence gating</li>
+            <li>Priority support</li>
+          </ul>
+          {% if is_logged_in %}
+          <a href="{{ url_for('index') }}" class="btn btn-primary">Open dashboard</a>
+          {% else %}
+          <a href="{{ url_for('signup') }}" class="btn btn-primary">Get started</a>
+          {% endif %}
+        </div>
+
+        <div class="plan">
+          <div class="plan-name">Enterprise</div>
+          <div class="plan-price">Custom</div>
+          <div class="plan-desc">For organizations with advanced requirements.</div>
+          <ul>
+            <li>SSO / SAML authentication</li>
+            <li>Custom domains &amp; white-label</li>
+            <li>Audit log export</li>
+            <li>SLA guarantee</li>
+            <li>Dedicated support</li>
+          </ul>
+          <a href="#" class="btn btn-outline">Contact sales</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="cta-section">
+    <div class="container">
+      <div class="cta-box">
+        <h2>Ready to build your chatbot?</h2>
+        <p>Create your tenant workspace in seconds and deploy your first AI chatbot today.</p>
+        {% if is_logged_in %}
+        <a href="{{ url_for('index') }}" class="btn btn-primary btn-hero">
+          Open your chatbot →
+        </a>
+        {% else %}
+        <a href="{{ url_for('signup') }}" class="btn btn-primary btn-hero">
+          Create your chatbot →
+        </a>
+        {% endif %}
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="container">
+      <div class="inner">
+        <div class="copy">&copy; {{ now.year }} B2b BOTS. All rights reserved.</div>
+        <div class="links">
+          <a href="#">Privacy</a>
+          <a href="#">Terms</a>
+          <a href="#">Contact</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="{{ url_for('static', filename='landing.js') }}"></script>
+</body>
+</html>

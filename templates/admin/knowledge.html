@@ -7,26 +7,28 @@
   <h3>Add URL for Scraping</h3>
   <form method="POST" action="{{ url_for('admin.add_url') }}" style="display:flex;gap:10px;">
     <input type="url" name="url" placeholder="https://example.com/faq-page" required style="flex:1;">
-    <button class="btn btn-primary btn-sm">Add URL</button>
+    <button class="btn btn-primary btn-sm" title="Add URL"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add URL</button>
   </form>
 
   {% if urls %}
-  <table style="margin-top:16px;">
+  <div class="table-wrap" style="margin-top:16px;">
+  <table>
     <thead><tr><th>URL</th><th>Added</th><th>Indexed</th><th>Ver</th><th></th></tr></thead>
     <tbody>
     {% for u in urls %}
       <tr>
-        <td style="font-size:13px;word-break:break-all;">{{ u.url }}</td>
+        <td><span class="filename-cell" title="{{ u.url }}">{{ u.url }}</span></td>
         <td style="white-space:nowrap;font-size:13px;">{{ u.created_at[:10] }}</td>
         <td style="white-space:nowrap;font-size:13px;">{{ (u.last_indexed_at or "")[:10] }}</td>
         <td style="text-align:center;">{{ u.version or 0 }}</td>
         <td>
-          <button class="btn btn-danger btn-sm" onclick="confirmDelete('{{ url_for('admin.delete_url', url_id=u.id) }}', 'url')">Remove</button>
+          <button class="icon-btn danger" title="Remove URL" onclick="confirmDelete('{{ url_for('admin.delete_url', url_id=u.id) }}', 'url')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
         </td>
       </tr>
     {% endfor %}
     </tbody>
   </table>
+  </div>
   {% else %}
   <p class="empty">No URLs added yet. Add URLs to scrape for the knowledge base.</p>
   {% endif %}
@@ -41,7 +43,7 @@
     <div style="flex:1;">
       <input type="file" name="file" accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.xlsx,.csv,.pptx" required style="padding:8px;">
     </div>
-    <button class="btn btn-primary btn-sm">Upload</button>
+    <button class="btn btn-primary btn-sm" title="Upload"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Upload</button>
   </form>
 </div>
 
@@ -49,22 +51,24 @@
 {% if docs %}
 <div class="card">
   <h3>{{ label }}</h3>
+  <div class="table-wrap">
   <table>
     <thead><tr><th>Filename</th><th>Uploaded</th><th>Indexed</th><th>Ver</th><th></th></tr></thead>
     <tbody>
     {% for d in docs %}
       <tr>
-        <td>{{ d.filename }}</td>
+        <td><span class="filename-cell" title="{{ d.filename }}">{{ d.filename }}</span></td>
         <td style="white-space:nowrap;font-size:13px;">{{ d.created_at[:10] }}</td>
         <td style="white-space:nowrap;font-size:13px;">{{ (d.last_indexed_at or "")[:10] }}</td>
         <td style="text-align:center;">{{ d.version or 0 }}</td>
         <td>
-          <button class="btn btn-danger btn-sm" onclick="confirmDelete('{{ url_for('admin.delete_doc', doc_id=d.id) }}', 'doc')">Delete</button>
+          <button class="icon-btn danger" title="Delete" onclick="confirmDelete('{{ url_for('admin.delete_doc', doc_id=d.id) }}', 'doc')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
         </td>
       </tr>
     {% endfor %}
     </tbody>
   </table>
+  </div>
 </div>
 {% endif %}
 {% endmacro %}
@@ -87,7 +91,7 @@
     After adding sources, rebuild the Knowledge Base to index everything.
   </p>
   <form method="POST" action="{{ url_for('admin.rebuild') }}">
-    <button class="btn btn-primary">Rebuild Now</button>
+    <button class="btn btn-primary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> Rebuild Now</button>
   </form>
 </div>
 

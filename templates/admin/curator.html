@@ -52,9 +52,13 @@
           <div style="display:flex;gap:8px;align-items:center;">
             <form method="POST" action="{{ url_for('admin.curator_item_action', item_id=item.id) }}" style="margin:0;">
               <input type="hidden" name="action" value="approve">
-              <button class="btn btn-primary">Apply update</button>
+              <button class="icon-btn" title="Apply update">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              </button>
             </form>
-            <a class="btn" href="#">View diff</a>
+            <a class="icon-btn" href="#" title="View diff">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </a>
           </div>
         </div>
       </div>
@@ -68,6 +72,7 @@
 <div class="card">
   <h3>Recent Snapshots</h3>
   {% if snapshots %}
+  <div class="table-wrap">
   <table>
     <thead>
       <tr><th>Source</th><th>Hash</th><th>Changed</th><th>Checked</th></tr>
@@ -76,13 +81,14 @@
       {% for item in snapshots %}
       <tr>
         <td>{{ item.source_type }}{% if item.source_id %} #{{ item.source_id }}{% endif %}</td>
-        <td style="font-family:monospace;font-size:12px;">{{ item.content_hash or "-" }}</td>
+        <td><span class="hash-cell" style="font-family:monospace;font-size:12px;" title="{{ item.content_hash }}">{{ item.content_hash or "-" }}</span></td>
         <td>{{ "Yes" if item.changed else "No" }}</td>
         <td style="white-space:nowrap;">{{ (item.checked_at or "")[:19] }}</td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
+  </div>
   {% else %}
   <p class="empty">No source snapshots recorded yet.</p>
   {% endif %}

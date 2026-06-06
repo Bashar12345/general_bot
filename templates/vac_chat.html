@@ -14,6 +14,9 @@
       <h1>{{ bot_name }}</h1>
       <div class="sub">{{ bot_tagline }}</div>
     </div>
+    <form method="POST" action="{{ url_for('user_logout') }}" style="margin-left:auto;">
+      <button type="submit" class="logout-btn">Logout</button>
+    </form>
   </header>
   <div class="container">
     <div id="chat">

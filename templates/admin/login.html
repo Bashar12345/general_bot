@@ -7,8 +7,15 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='admin_login.css') }}">
 </head>
 <body class="theme-{{ admin_theme }}">
-  <div class="login">
-    <h1>{{ admin_brand_name }} Admin</h1>
+  <div class="login-card">
+    <div class="brand-row">
+      <div class="brand-mark">{{ admin_brand_name[0] }}</div>
+      <div class="brand-text">
+        <h1>{{ admin_brand_name }}</h1>
+        <p>Admin panel</p>
+      </div>
+    </div>
+    <h2>Sign In</h2>
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% for cat, msg in messages %}
         <div class="flash {{ cat }}">{{ msg }}</div>
