@@ -46,6 +46,10 @@ def migrate_db():
         "ALTER TABLE documents ADD COLUMN last_change_at TIMESTAMP",
         "ALTER TABLE documents ADD COLUMN crawl_history_json TEXT DEFAULT '[]'",
         "ALTER TABLE index_log ADD COLUMN tenant_id INTEGER DEFAULT 1",
+        "ALTER TABLE settings ADD COLUMN llm_provider TEXT DEFAULT 'openai'",
+        "ALTER TABLE settings ADD COLUMN llm_model TEXT DEFAULT 'gpt-4o-mini'",
+        "ALTER TABLE settings ADD COLUMN llm_api_key TEXT DEFAULT ''",
+        "ALTER TABLE settings ADD COLUMN llm_base_url TEXT DEFAULT ''",
     ]
     for sql in migrations:
         try:

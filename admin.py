@@ -15,6 +15,7 @@ from api.dto import (
     TenantCreateRequest, TenantEditRequest,
     KnowledgeAddUrlRequest, CuratorActionRequest,
 )
+from vac_bot.chain import PROVIDER_OPTIONS
 
 session_provider = FlaskSessionProvider()
 admin_handler = AdminHandler(session_provider)
@@ -114,6 +115,10 @@ def settings():
             tone=request.form.get("tone", ""),
             purpose=request.form.get("purpose", ""),
             instructions=request.form.get("instructions", ""),
+            llm_provider=(request.form.get("llm_provider") or "openai").strip(),
+            llm_model=(request.form.get("llm_model") or "gpt-4o-mini").strip(),
+            llm_api_key=(request.form.get("llm_api_key") or "").strip(),
+            llm_base_url=(request.form.get("llm_base_url") or "").strip(),
         )
         msg = admin_handler.update_settings(req)
 
@@ -138,6 +143,14 @@ def settings():
 
     s = load_settings()
     bot_avatar = s.get("bot_avatar") or ""
+    provider_models = {
+        "openai": "gpt-4o-mini, gpt-4o, gpt-4-turbo, gpt-3.5-turbo",
+        "azure_openai": "gpt-4o-mini, gpt-4o, gpt-4",
+        "anthropic": "claude-sonnet-4-20250514, claude-haiku-4-20250514, claude-opus-4-20250514",
+        "google": "gemini-2.0-flash, gemini-2.0-pro, gemini-1.5-flash, gemini-1.5-pro",
+        "groq": "llama3-70b-8192, llama3-8b-8192, mixtral-8x7b-32768",
+        "openai_compat": "custom model name (e.g. deepseek-chat, grok-2-1212, llama3)",
+    }
     return render_template(
         "admin/settings.html",
         settings=s,
@@ -147,6 +160,8 @@ def settings():
         personality_options=PERSONALITY_OPTIONS,
         tone_options=TONE_OPTIONS,
         purpose_options=PURPOSE_OPTIONS,
+        provider_options=PROVIDER_OPTIONS,
+        provider_models=provider_models,
     )
 
 

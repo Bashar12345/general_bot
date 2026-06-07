@@ -1,9 +1,10 @@
-from langchain_openai import ChatOpenAI
+from langchain_core.language_models import BaseChatModel
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder, PromptTemplate
 from langchain_core.runnables import RunnableWithMessageHistory
 from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain.chains import create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
+import os
 from pathlib import Path
 from datetime import datetime, timezone
 import json
@@ -120,6 +121,54 @@ def _append_attribution_log(events):
 
 _build_error = None
 _chain = None
+PROVIDER_OPTIONS = {
+    "openai":      {"label": "OpenAI",        "env_key": "OPENAI_API_KEY"},
+    "azure_openai": {"label": "Azure OpenAI",  "env_key": "AZURE_OPENAI_API_KEY"},
+    "anthropic":   {"label": "Anthropic",      "env_key": "ANTHROPIC_API_KEY"},
+    "google":      {"label": "Google Gemini", "env_key": "GOOGLE_API_KEY"},
+    "groq":        {"label": "Groq",           "env_key": "GROQ_API_KEY"},
+    "openai_compat": {"label": "OpenAI-Compatible", "env_key": "CUSTOM_API_KEY"},
+}
+
+def _resolve_api_key(settings: dict) -> str:
+    key = (settings.get("llm_api_key") or "").strip()
+    if key:
+        return key
+    provider = (settings.get("llm_provider") or "openai").strip()
+    info = PROVIDER_OPTIONS.get(provider, PROVIDER_OPTIONS["openai"])
+    return os.getenv(info["env_key"], "")
+
+def _build_llm(settings: dict) -> BaseChatModel:
+    provider = (settings.get("llm_provider") or "openai").strip()
+    model = (settings.get("llm_model") or "gpt-4o-mini").strip()
+    api_key = _resolve_api_key(settings)
+    base_url = (settings.get("llm_base_url") or "").strip() or None
+    kwargs = {"temperature": 0, "model": model}
+    if api_key:
+        kwargs["api_key"] = api_key
+
+    if provider == "anthropic":
+        from langchain_anthropic import ChatAnthropic
+        return ChatAnthropic(**kwargs)
+    elif provider == "google":
+        from langchain_google_genai import ChatGoogleGenerativeAI
+        kwargs.pop("api_key", None)
+        kwargs["google_api_key"] = api_key
+        return ChatGoogleGenerativeAI(**kwargs)
+    elif provider == "groq":
+        from langchain_groq import ChatGroq
+        return ChatGroq(**kwargs)
+    elif provider == "azure_openai":
+        from langchain_openai import AzureChatOpenAI
+        api_version = os.getenv("AZURE_OPENAI_API_VERSION", "2024-08-01-preview")
+        endpoint = os.getenv("AZURE_OPENAI_ENDPOINT", base_url or "")
+        return AzureChatOpenAI(azure_endpoint=endpoint, api_version=api_version, **kwargs)
+    else:
+        from langchain_openai import ChatOpenAI
+        if base_url:
+            kwargs["base_url"] = base_url
+        return ChatOpenAI(**kwargs)
+
 def _tenant_key(tenant_id):
     return str(tenant_id) if tenant_id is not None else "default"
 
@@ -134,7 +183,7 @@ def _ensure_chain(tenant_id=None):
     try:
         settings = get_settings()
         retriever = VectordbRetriever(k=5, tenant_id=tenant_key)
-        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+        llm = _build_llm(settings)
         qa_prompt = build_prompt(settings)
         question_answer_chain = create_stuff_documents_chain(
             llm,
@@ -160,13 +209,16 @@ def rebuild_chain():
     _chains.clear()
     _build_error = None
 
-_enc = None
 def count_tokens(text):
-    global _enc
-    if _enc is None:
+    if not text:
+        return 0
+    try:
         import tiktoken
-        _enc = tiktoken.encoding_for_model("gpt-4o-mini")
-    return len(_enc.encode(text)) if text else 0
+        enc = tiktoken.get_encoding("cl100k_base")
+        return len(enc.encode(text))
+    except Exception:
+        pass
+    return len(text.split())
 
 async def ask(q: str, sid: str = "1", tenant_id=None):
     chain = _ensure_chain(tenant_id)

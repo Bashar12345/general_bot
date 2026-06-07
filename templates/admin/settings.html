@@ -95,9 +95,117 @@
         <textarea name="instructions" rows="4" placeholder="What to say when the bot doesn't know the answer.">{{ settings.instructions }}</textarea>
       </div>
     </div>
+    <hr style="margin:24px 0;border-color:var(--border);">
+    <h3 style="margin-bottom:16px;">LLM Provider</h3>
+
+    <div class="form-row">
+      <label>Provider</label>
+      <div class="field">
+        <select name="llm_provider" id="llm_provider">
+          {% for key, info in provider_options.items() %}
+            <option value="{{ key }}"
+              data-env-key="{{ info.env_key }}"
+              {% if (settings.llm_provider or 'openai') == key %}selected{% endif %}>
+              {{ info.label }}
+            </option>
+          {% endfor %}
+        </select>
+        <div class="field-hint" id="provider_hint"></div>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <label>Model Name</label>
+      <div class="field">
+        <input type="text" name="llm_model" id="llm_model"
+               value="{{ settings.llm_model or 'gpt-4o-mini' }}"
+               placeholder="e.g. gpt-4o-mini">
+        <div class="field-hint" id="model_hint">Common models: <span id="model_examples">gpt-4o-mini, gpt-4o, gpt-4-turbo</span></div>
+      </div>
+    </div>
+
+    <div class="form-row" id="api_key_row">
+      <label>API Key</label>
+      <div class="field">
+        <input type="password" name="llm_api_key" id="llm_api_key"
+               value="{{ settings.llm_api_key or '' }}"
+               placeholder="Leave blank to use environment variable">
+        <div class="field-hint" id="api_key_hint"></div>
+      </div>
+    </div>
+
+    <div class="form-row" id="base_url_row">
+      <label>Base URL</label>
+      <div class="field">
+        <input type="text" name="llm_base_url" id="llm_base_url"
+               value="{{ settings.llm_base_url or '' }}"
+               placeholder="https://api.openai.com/v1">
+        <div class="field-hint" id="base_url_hint">Required for OpenAI-compatible providers (Ollama, vLLM, DeepSeek, Grok, etc.)</div>
+      </div>
+    </div>
+
     <div style="display:flex;justify-content:flex-end;padding-top:8px;">
       <button class="btn btn-primary">Save Settings</button>
     </div>
   </form>
 </div>
+
+<script>
+const providerInfo = {
+  {% for key, info in provider_options.items() %}
+    {{ key }}: {
+      label: "{{ info.label }}",
+      env_key: "{{ info.env_key }}",
+    },
+  {% endfor %}
+};
+const providerModels = {
+  {% for key, models in provider_models.items() %}
+    {{ key }}: "{{ models }}",
+  {% endfor %}
+};
+
+function updateProviderUI() {
+  const sel = document.getElementById("llm_provider");
+  const provider = sel.value;
+  const info = providerInfo[provider];
+  const hint = document.getElementById("provider_hint");
+  hint.textContent = `API key sourced from env: ${info.env_key}`;
+
+  document.getElementById("model_examples").textContent = providerModels[provider] || "";
+
+  const isOpenAICompat = provider === "openai_compat";
+  const isOpenAI = provider === "openai";
+  const isAzure = provider === "azure_openai";
+  const isAnthropic = provider === "anthropic";
+  const isGoogle = provider === "google";
+  const isGroq = provider === "groq";
+
+  document.getElementById("base_url_row").style.display =
+    (isOpenAICompat || isAzure) ? "flex" : "none";
+  document.getElementById("api_key_row").style.display =
+    (isOpenAI || isAzure || isAnthropic || isGoogle || isGroq) ? "none" : "flex";
+
+  const baseUrlInput = document.getElementById("llm_base_url");
+  if (isOpenAICompat) {
+    baseUrlInput.placeholder = "e.g. https://api.deepseek.com, http://localhost:11434/v1";
+    document.getElementById("base_url_hint").textContent =
+      "Required: set this to the provider's API endpoint (e.g. https://api.deepseek.com, http://localhost:11434/v1)";
+  } else if (isAzure) {
+    baseUrlInput.placeholder = "https://your-resource.openai.azure.com";
+    document.getElementById("base_url_hint").textContent =
+      "Azure endpoint URL — also set AZURE_OPENAI_API_VERSION in .env";
+  }
+
+  const modelInput = document.getElementById("llm_model");
+  if (isAnthropic) modelInput.placeholder = "e.g. claude-sonnet-4-20250514";
+  else if (isGoogle) modelInput.placeholder = "e.g. gemini-2.0-flash";
+  else if (isGroq) modelInput.placeholder = "e.g. llama3-70b-8192";
+  else if (isOpenAICompat) modelInput.placeholder = "e.g. deepseek-chat, grok-2-1212, llama3";
+  else modelInput.placeholder = "e.g. gpt-4o-mini";
+}
+
+document.getElementById("llm_provider").addEventListener("change", updateProviderUI);
+updateProviderUI();
+</script>
 {% endblock %}

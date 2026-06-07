@@ -65,7 +65,7 @@ class AdminHandler:
                 (req.tenant_id, req.bot_name or "B2b BOTS", req.language or "en"),
             )
         conn.execute(
-            "UPDATE settings SET bot_name=?, theme=?, language=?, personality=?, tone=?, purpose=?, instructions=?, updated_at=? WHERE tenant_id=?",
+            "UPDATE settings SET bot_name=?, theme=?, language=?, personality=?, tone=?, purpose=?, instructions=?, llm_provider=?, llm_model=?, llm_api_key=?, llm_base_url=?, updated_at=? WHERE tenant_id=?",
             (
                 req.bot_name or "B2b BOTS",
                 req.theme,
@@ -74,6 +74,10 @@ class AdminHandler:
                 req.tone,
                 req.purpose,
                 req.instructions,
+                req.llm_provider,
+                req.llm_model,
+                req.llm_api_key,
+                req.llm_base_url,
                 datetime.now(timezone.utc).isoformat(),
                 req.tenant_id,
             )

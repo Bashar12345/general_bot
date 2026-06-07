@@ -74,6 +74,10 @@ class SettingsUpdateRequest:
     instructions: str = ""
     avatar_file: Optional[bytes] = None
     avatar_filename: str = ""
+    llm_provider: str = "openai"
+    llm_model: str = "gpt-4o-mini"
+    llm_api_key: str = ""
+    llm_base_url: str = ""
 
 
 @dataclass
