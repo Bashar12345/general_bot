@@ -25,7 +25,7 @@ def test_login_seeds_default_tenant_in_session(monkeypatch, tmp_path):
 
     client = app_module.app.test_client()
     response = client.post(
-        "/admin/login",
+        "/tenant/login",
         data={"username": "admin", "password": "admin123"},
     )
 

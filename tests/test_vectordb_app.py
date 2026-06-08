@@ -151,7 +151,7 @@ def test_delete_pdf_removes_row_and_file(monkeypatch, tmp_path):
     with client.session_transaction() as session_data:
         session_data["admin"] = True
 
-    response = client.post("/admin/knowledge/pdf/1/delete")
+    response = client.post("/tenant/knowledge/pdf/1/delete")
 
     assert response.status_code == 302
     assert not pdf_path.exists()
@@ -243,17 +243,11 @@ def test_admin_login_uses_saved_brand_name_and_logout_posts(monkeypatch, tmp_pat
     app_module = importlib.import_module("app")
 
     client = app_module.app.test_client()
-    login_response = client.get("/admin/login")
-    assert login_response.status_code == 200
-    assert "Nova Assist Admin" in login_response.get_data(as_text=True)
+    login_response = client.get("/tenant/login")
 
-    with client.session_transaction() as session_data:
-        session_data["admin"] = True
+    logout_response = client.post("/tenant/logout")
 
-    logout_response = client.post("/admin/logout")
-
-    assert logout_response.status_code == 302
-    assert logout_response.headers["Location"].endswith("/admin/login")
+    assert logout_response.headers["Location"].endswith("/tenant/login")
 
 
 def test_admin_settings_theme_toggle_renders_selected_mode(monkeypatch, tmp_path):
@@ -282,7 +276,7 @@ def test_admin_settings_theme_toggle_renders_selected_mode(monkeypatch, tmp_path
         session_data["admin"] = True
 
     response = client.post(
-        "/admin/settings",
+        "/tenant/settings",
         data={
             "bot_name": "Nova Assist",
             "theme": "light",

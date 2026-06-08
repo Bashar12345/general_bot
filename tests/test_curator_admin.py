@@ -15,7 +15,7 @@ def test_curator_scan_page_is_available(monkeypatch, tmp_path):
         session_data["admin"] = True
         session_data["tenant_id"] = 1
 
-    response = client.get("/admin/curator")
+    response = client.get("/tenant/curator")
     assert response.status_code == 200
     assert "Curator Queue" in response.get_data(as_text=True)
 
@@ -43,7 +43,7 @@ def test_curator_queue_item_can_be_dismissed(monkeypatch, tmp_path):
         session_data["tenant_id"] = 1
 
     response = client.post(
-        "/admin/curator/item/1/action",
+        "/tenant/curator/item/1/action",
         data={"action": "dismiss"},
     )
 
