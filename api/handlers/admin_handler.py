@@ -99,6 +99,7 @@ class AdminHandler:
         tenant_name = tenant.get("name") if tenant else "Tenant"
         tenant_slug = tenant.get("slug") if tenant else "default"
         bot_avatar = settings.get("bot_avatar") or ""
+        is_super_admin = self._session.get("user_id") == 0 and self._session.get("admin")
         DEFAULT_BOT_NAME = "B2b BOTS"
         return {
             "admin_brand_name": settings.get("bot_name") or DEFAULT_BOT_NAME,
@@ -109,6 +110,7 @@ class AdminHandler:
             "tenant_id": tid,
             "tenant_plan": "Pro plan",
             "bot_avatar_url": bot_avatar,
+            "is_super_admin": is_super_admin,
         }
 
     def delete_avatar(self, tenant_id: int) -> None:
@@ -314,7 +316,7 @@ class AdminHandler:
                 conn.execute("BEGIN IMMEDIATE")
                 conn.execute(
                     "INSERT INTO users (tenant_id, username, password_hash, role) VALUES (?, ?, ?, ?)",
-                    (req.tenant_id, req.email, pw_hash, req.role),
+                    (req.tenant_id, req.email, pw_hash, "member"),
                 )
                 conn.commit()
                 self._session.set("last_invited_user", req.email)
@@ -342,19 +344,7 @@ class AdminHandler:
         return f"Could not create user: {last_error}"
 
     def edit_user(self, req: UserEditRequest) -> str:
-        if req.role not in ("viewer", "admin"):
-            return "Invalid role."
-        conn = get_conn()
-        user = conn.execute(
-            "SELECT * FROM users WHERE id=? AND tenant_id=?", (req.user_id, req.tenant_id)
-        ).fetchone()
-        if not user:
-            conn.close()
-            return "User not found."
-        conn.execute("UPDATE users SET role=? WHERE id=?", (req.role, req.user_id))
-        conn.commit()
-        conn.close()
-        return f"User {user['username']} role updated to {req.role}."
+        return "Role management is no longer supported — all users have the same access."
 
     def delete_user(self, user_id: int) -> str:
         tenant_id = self._session.get_tenant_id() or get_default_tenant_id()

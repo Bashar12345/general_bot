@@ -85,14 +85,12 @@ class UserInviteRequest:
     tenant_id: int
     email: str
     password: str = ""
-    role: str = "viewer"
 
 
 @dataclass
 class UserEditRequest:
     user_id: int
     tenant_id: int
-    role: str
 
 
 @dataclass

@@ -84,7 +84,7 @@ def init_db():
             tenant_id INTEGER NOT NULL,
             username TEXT NOT NULL,
             password_hash TEXT NOT NULL DEFAULT '',
-            role TEXT NOT NULL DEFAULT 'admin',
+            role TEXT NOT NULL DEFAULT 'member',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (tenant_id) REFERENCES tenants(id)
@@ -177,6 +177,13 @@ def init_db():
         "INSERT OR IGNORE INTO tenants (id, name, slug, status) VALUES (?, ?, ?, ?)",
         (1, "Default Tenant", "default", "active")
     )
+    user_count = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+    if user_count == 0:
+        from werkzeug.security import generate_password_hash
+        conn.execute(
+            "INSERT INTO users (tenant_id, username, password_hash, role) VALUES (?, ?, ?, ?)",
+            (1, "admin", generate_password_hash("admin123"), "member"),
+        )
     row = conn.execute("SELECT COUNT(*) FROM settings").fetchone()
     if row[0] == 0:
         conn.execute(

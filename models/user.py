@@ -9,13 +9,9 @@ class User:
     tenant_id: int = 1
     username: str = ""
     password_hash: str = ""
-    role: str = "viewer"
+    role: str = "member"
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
-
-    @property
-    def is_admin(self) -> bool:
-        return self.role == "admin"
 
     @classmethod
     def from_row(cls, row) -> "User":
@@ -27,7 +23,7 @@ class User:
             tenant_id=d.get("tenant_id", 1),
             username=d.get("username", ""),
             password_hash=d.get("password_hash", ""),
-            role=d.get("role", "viewer"),
+            role=d.get("role", "member"),
             created_at=d.get("created_at"),
             updated_at=d.get("updated_at"),
         )

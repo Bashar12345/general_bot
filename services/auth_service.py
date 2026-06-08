@@ -51,18 +51,30 @@ class AuthService:
 
         conn = get_conn()
         try:
+            name = business_name
+            while conn.execute("SELECT 1 FROM tenants WHERE name=?", (name,)).fetchone():
+                name = re.sub(r"\s*\(\d+\)$", "", name).strip()
+                n = 1
+                while conn.execute("SELECT 1 FROM tenants WHERE name=?", (f"{name} ({n})",)).fetchone():
+                    n += 1
+                name = f"{name} ({n})"
+            while conn.execute("SELECT 1 FROM tenants WHERE slug=?", (slug,)).fetchone():
+                n = 1
+                while conn.execute("SELECT 1 FROM tenants WHERE slug=?", (f"{slug}-{n}",)).fetchone():
+                    n += 1
+                slug = f"{slug}-{n}"
             conn.execute(
                 "INSERT INTO tenants (name, slug, status) VALUES (?, ?, ?)",
-                (business_name, slug, "active"),
+                (name, slug, "active"),
             )
             tenant_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
             conn.execute(
                 "INSERT INTO settings (tenant_id, bot_name) VALUES (?, ?)",
-                (tenant_id, business_name + " Bot"),
+                (tenant_id, name + " Bot"),
             )
             conn.execute(
                 "INSERT INTO users (tenant_id, username, password_hash, role) VALUES (?, ?, ?, ?)",
-                (tenant_id, email, generate_password_hash(password), "admin"),
+                (tenant_id, email, generate_password_hash(password), "member"),
             )
             conn.commit()
             user = conn.execute(
@@ -73,9 +85,9 @@ class AuthService:
                 user_id=user["id"],
                 tenant_id=tenant_id,
                 username=email,
-                role="admin",
+                role="member",
             )
-            return AuthResult(success=True, user_id=user["id"], tenant_id=tenant_id, username=email, role="admin")
+            return AuthResult(success=True, user_id=user["id"], tenant_id=tenant_id, username=email, role="member")
         except Exception as e:
             conn.close()
             return AuthResult(success=False, error=str(e))

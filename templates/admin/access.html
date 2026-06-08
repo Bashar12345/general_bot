@@ -6,7 +6,7 @@
 
 <div class="access-grid" style="grid-template-columns: minmax(0, 1fr);">
   <div class="card">
-    <div class="section-title">Admin users</div>
+    <div class="section-title">Users</div>
     {% if invite_result.temporary_password %}
       <div style="margin-bottom:18px;padding:14px 16px;border-radius:12px;background:var(--surface-2);border:1px solid var(--border);">
         <div style="font-size:12px;text-transform:uppercase;letter-spacing:0.06em;color:var(--accent);font-weight:800;margin-bottom:8px;">Temporary password</div>
@@ -19,15 +19,6 @@
       <div class="user-row">
         <div class="avatar">{{ (u.username[:2]|upper) if u.username else 'U' }}</div>
         <div class="user-email">{{ u.username }}</div>
-        <form method="POST" action="{{ url_for('admin.edit_user', user_id=u.id) }}" style="display:inline-flex;gap:6px;align-items:center;">
-          <select name="role" class="role-select">
-            <option value="viewer" {% if u.role == 'viewer' %}selected{% endif %}>Viewer</option>
-            <option value="admin" {% if u.role == 'admin' %}selected{% endif %}>Admin</option>
-          </select>
-          <button class="icon-btn" title="Save role">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-          </button>
-        </form>
         <form method="POST" action="{{ url_for('admin.delete_user', user_id=u.id) }}" style="display:inline;" onsubmit="return confirm('Delete user {{ u.username }}?');">
           <button class="icon-btn danger" title="Delete user">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
@@ -35,7 +26,7 @@
         </form>
       </div>
     {% else %}
-      <div class="empty">No tenant users found yet.</div>
+      <div class="empty">No users found yet.</div>
     {% endfor %}
 
     <div style="margin-top:20px;">
@@ -49,13 +40,6 @@
           <div class="form-group">
             <label>Temporary password</label>
             <input name="password" type="text" placeholder="Leave blank to auto-generate">
-          </div>
-          <div class="form-group">
-            <label>Role</label>
-            <select name="role">
-              <option value="viewer">Viewer</option>
-              <option value="admin">Admin</option>
-            </select>
           </div>
           <div class="form-group invite-submit">
             <button class="btn btn-primary" type="submit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg> Invite</button>

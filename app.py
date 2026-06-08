@@ -113,6 +113,7 @@ def signup():
 @app.route('/logout', methods=['POST'])
 def user_logout():
     auth_handler.logout()
+    session.pop('admin', None)
     return redirect(url_for('user_login'))
 
 

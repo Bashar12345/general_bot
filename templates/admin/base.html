@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}Admin{% endblock %} — {{ admin_brand_name }}</title>
+  <title>{% block title %}Tenant{% endblock %} — {{ admin_brand_name }}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}">
 </head>
 <body class="theme-{{ admin_theme }}">
@@ -16,7 +16,7 @@
       {% endif %}
       <div class="brand-info">
         <h2>{{ admin_brand_name }}</h2>
-        <small>Configuration Panel</small>
+        <small>Tenant Panel</small>
       </div>
     </div>
 
@@ -28,10 +28,12 @@
         Dashboard
       </a>
 
+      {% if is_super_admin %}
       <a href="{{ url_for('admin.tenants') }}" class="{% if request.endpoint in ('admin.tenants', 'admin.new_tenant', 'admin.edit_tenant') %}active{% endif %}">
         <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
         Tenants
       </a>
+      {% endif %}
 
       <div class="nav-label">Bot</div>
 

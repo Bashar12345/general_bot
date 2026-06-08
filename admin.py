@@ -8,9 +8,9 @@ from flask import (
 from werkzeug.utils import secure_filename
 from db import get_conn, get_settings as load_settings, get_default_tenant_id
 from api.flask.adapters import FlaskSessionProvider
-from api import AdminHandler
+from api import AdminHandler, AuthHandler
 from api.dto import (
-    AdminLoginRequest, SettingsUpdateRequest,
+    AdminLoginRequest, LoginRequest, SettingsUpdateRequest,
     UserInviteRequest, UserEditRequest,
     TenantCreateRequest, TenantEditRequest,
     KnowledgeAddUrlRequest, CuratorActionRequest,
@@ -19,6 +19,7 @@ from vac_bot.chain import PROVIDER_OPTIONS
 
 session_provider = FlaskSessionProvider()
 admin_handler = AdminHandler(session_provider)
+auth_handler = AuthHandler(session_provider)
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 
@@ -69,11 +70,16 @@ def inject_admin_brand_name():
 @admin_bp.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        result = admin_handler.login(AdminLoginRequest(
-            username=(request.form.get("username") or "").strip(),
-            password=(request.form.get("password") or "").strip(),
-        ))
+        username = (request.form.get("username") or "").strip()
+        password = (request.form.get("password") or "").strip()
+        # Try super-admin (env-var) auth first
+        result = admin_handler.login(AdminLoginRequest(username=username, password=password))
         if result.success:
+            return redirect(url_for("admin.dashboard"))
+        # Then try tenant user (DB) auth
+        user_result = auth_handler.login(LoginRequest(username=username, password=password))
+        if user_result.success:
+            session["admin"] = True
             return redirect(url_for("admin.dashboard"))
         flash("Invalid credentials", "error")
     return render_template("admin/login.html")
@@ -267,7 +273,6 @@ def add_user():
         tenant_id=tenant_id,
         email=(request.form.get("email") or "").strip(),
         password=(request.form.get("password") or "").strip(),
-        role=(request.form.get("role") or "viewer").strip(),
     )
     if not req.email:
         flash("Email is required", "error")
@@ -282,11 +287,7 @@ def add_user():
 def edit_user(user_id):
     tenant_id = session.get("tenant_id") or get_default_tenant_id()
     msg = admin_handler.edit_user(
-        UserEditRequest(
-            user_id=user_id,
-            tenant_id=tenant_id,
-            role=(request.form.get("role") or "").strip(),
-        )
+        UserEditRequest(user_id=user_id, tenant_id=tenant_id)
     )
     flash(msg, "success" if "updated" in msg else "error")
     return redirect(url_for("admin.access"))
