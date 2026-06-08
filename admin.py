@@ -21,7 +21,7 @@ session_provider = FlaskSessionProvider()
 admin_handler = AdminHandler(session_provider)
 auth_handler = AuthHandler(session_provider)
 
-admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
+admin_bp = Blueprint("admin", __name__, url_prefix="/tenant")
 
 DEFAULT_BOT_NAME = "B2b BOTS"
 DEFAULT_THEME = "dark"
