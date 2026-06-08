@@ -14,9 +14,14 @@
       <h1>{{ bot_name }}</h1>
       <div class="sub">{{ bot_tagline }}</div>
     </div>
-    <form method="POST" action="{{ url_for('user_logout') }}" style="margin-left:auto;">
-      <button type="submit" class="logout-btn">Logout</button>
-    </form>
+    <div style="margin-left:auto;display:flex;gap:8px;align-items:center;">
+      <a href="{{ url_for('admin.dashboard') }}" class="icon-btn" title="Tenant Dashboard" style="display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:50%;background:var(--surface-2);color:var(--text-strong);text-decoration:none;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      </a>
+      <form method="POST" action="{{ url_for('user_logout') }}" style="margin:0;">
+        <button type="submit" class="logout-btn">Logout</button>
+      </form>
+    </div>
   </header>
   <div class="container">
     <div id="chat">
