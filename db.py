@@ -182,7 +182,7 @@ def init_db():
         from werkzeug.security import generate_password_hash
         conn.execute(
             "INSERT INTO users (tenant_id, username, password_hash, role) VALUES (?, ?, ?, ?)",
-            (1, "admin", generate_password_hash("admin123"), "member"),
+            (1, "admin", generate_password_hash("admin123"), "tenant"),
         )
     row = conn.execute("SELECT COUNT(*) FROM settings").fetchone()
     if row[0] == 0:

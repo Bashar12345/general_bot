@@ -23,4 +23,4 @@ class FlaskSessionProvider(SessionProvider):
         return flask_session.get("user_id") is not None
 
     def is_admin_logged_in(self) -> bool:
-        return flask_session.get("admin") is not None or flask_session.get("user_id") is not None
+        return flask_session.get("admin") is not None or flask_session.get("user_role") == "tenant"

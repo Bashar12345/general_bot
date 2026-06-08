@@ -74,7 +74,7 @@ class AuthService:
             )
             conn.execute(
                 "INSERT INTO users (tenant_id, username, password_hash, role) VALUES (?, ?, ?, ?)",
-                (tenant_id, email, generate_password_hash(password), "member"),
+                (tenant_id, email, generate_password_hash(password), "tenant"),
             )
             conn.commit()
             user = conn.execute(
@@ -85,9 +85,9 @@ class AuthService:
                 user_id=user["id"],
                 tenant_id=tenant_id,
                 username=email,
-                role="member",
+                role="tenant",
             )
-            return AuthResult(success=True, user_id=user["id"], tenant_id=tenant_id, username=email, role="member")
+            return AuthResult(success=True, user_id=user["id"], tenant_id=tenant_id, username=email, role="tenant")
         except Exception as e:
             conn.close()
             return AuthResult(success=False, error=str(e))

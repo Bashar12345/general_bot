@@ -79,8 +79,10 @@ def login():
         # Then try tenant user (DB) auth
         user_result = auth_handler.login(LoginRequest(username=username, password=password))
         if user_result.success:
-            session["admin"] = True
-            return redirect(url_for("admin.dashboard"))
+            if user_result.role == "tenant":
+                return redirect(url_for("admin.dashboard"))
+            flash("Access denied: invited users can only use the chat interface", "error")
+            return redirect(url_for("admin.login"))
         flash("Invalid credentials", "error")
     return render_template("admin/login.html")
 

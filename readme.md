@@ -18,3 +18,10 @@ Open/Closed	Authenticator abstract base class â new auth methods (OAuth, SS
 Liskov Substitution	AdminAuthenticator and UserAuthenticator are interchangeable via Authenticator interface
 Interface Segregation	Each repository (UserRepository, TenantRepository) has focused methods; AuthService has separate login_user() / login_admin()
 Dependency Inversion	Routes depend on AuthService abstraction, not on session[] manipulation or raw DB calls. Repositories depend on Repository[T] generic, not on connection details
+
+
+#only super admin can create tenat,
+
+user will sign up as tenat.
+
+tenat tab need to be removed

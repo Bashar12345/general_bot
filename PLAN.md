@@ -83,11 +83,9 @@ User comes to website
 ### Features
 - No signup — created by tenant via Access page
 - Receives temporary password from the inviting tenant
-- Login at `/tenant/login` (email + temp password) **or** `/login` (email + temp password)
+- Login at `/login` (email + temp password) only
 - Chat at `/` with the bot
-- Profile icon in chat header links to tenant dashboard (`/tenant/`)
-- Same admin panel as the tenant (Dashboard, Settings, Knowledge, Curator, Access)
-- Can invite additional users
+- **Cannot access the tenant dashboard** — `/tenant/` routes are blocked
 - Can change own password at `/change_password`
 
 ### Lifecycle
@@ -100,19 +98,18 @@ Invited user comes to website
   → /login
   → enters email + temporary password
   → redirected to / (chat)
-  → changes password at /change_password
-  → uses profile icon to go to /tenant/ dashboard
-  → chats with bot, manages bot settings, invites more users
+  → chats with bot
+  → changes password at /change_password  (optional)
   → logout
 ```
 
 ### Subsequent visits
 ```
 User comes to website
-  → /login (or /tenant/login)
+  → /login
   → enters email + password
-  → redirected to chat or dashboard
-  → chats or manages
+  → redirected to chat
+  → chats, changes password
   → logout
 ```
 
@@ -128,12 +125,14 @@ User comes to website
 | View all tenants | ✅ | ❌ | ❌ |
 | Create tenants | ✅ | ❌ | ❌ |
 | Edit/delete any tenant | ✅ | ❌ | ❌ |
-| Manage own bot settings | ❌ | ✅ | ✅ |
-| Manage own knowledge base | ❌ | ✅ | ✅ |
-| Manage curator queue | ❌ | ✅ | ✅ |
-| View users in tenant | ❌ | ✅ | ✅ |
-| Invite new users | ❌ | ✅ | ✅ |
-| Delete users | ❌ | ✅ | ✅ |
+| Access tenant dashboard (`/tenant/`) | ❌ | ✅ | ❌ |
+| Manage own bot settings | ❌ | ✅ | ❌ |
+| Manage own knowledge base | ❌ | ✅ | ❌ |
+| Manage curator queue | ❌ | ✅ | ❌ |
+| View users in tenant | ❌ | ✅ | ❌ |
+| Invite new users | ❌ | ✅ | ❌ |
+| Delete users | ❌ | ✅ | ❌ |
 | Change own password | ❌ | ✅ | ✅ |
 
-> **Note:** Invited users have the same capabilities as the tenant who invited them. There is no role distinction within a tenant.
+> **Role values in DB:** `tenant` = tenant owner (full access), `member` = invited user (chat only).
+> Invited users log in at `/login` and are restricted to the chat interface only.
