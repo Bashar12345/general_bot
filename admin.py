@@ -75,7 +75,7 @@ def login():
         # Try super-admin (env-var) auth first
         result = admin_handler.login(AdminLoginRequest(username=username, password=password))
         if result.success:
-            return redirect(url_for("admin.dashboard"))
+            return redirect(url_for("admin.tenants"))
         # Then try tenant user (DB) auth
         user_result = auth_handler.login(LoginRequest(username=username, password=password))
         if user_result.success:
